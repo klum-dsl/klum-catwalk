@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "mode": "public-release",
+  "fixture": ":direct-schema",
+  "klumAst": {
+    "version": "4.0.0",
+    "pluginId": "com.blackbuild.klum-ast-schema",
+    "pluginMarker": "com.blackbuild.klum-ast-schema:com.blackbuild.klum-ast-schema.gradle.plugin:4.0.0",
+    "pluginImplementation": "com.blackbuild.klum.ast:klum-ast-gradle-plugin:4.0.0",
+    "publishedModules": [
+      "com.blackbuild.klum.ast:klum-ast-bom:4.0.0",
+      "com.blackbuild.klum.ast:klum-ast-annotations:4.0.0",
+      "com.blackbuild.klum.ast:klum-ast:4.0.0",
+      "com.blackbuild.klum.ast:klum-ast-runtime:4.0.0",
+      "com.blackbuild.klum.ast:klum-ast-jackson:4.0.0",
+      "com.blackbuild.klum.ast:klum-ast-bean-validation:4.0.0",
+      "com.blackbuild.klum.ast:klum-ast-gradle-plugin:4.0.0"
+    ],
+    "excludedHistoricalModules": [
+      "com.blackbuild.klum.ast:klum-ast-test-support:4.0.0"
+    ]
+  },
+  "repositories": {
+    "dependencies": ["mavenCentral"],
+    "plugins": ["gradlePluginPortal", "mavenCentral"]
+  },
+  "requirements": {
+    "gradle": "8.14.4",
+    "java": "17",
+    "groovy": "3"
+  },
+  "prohibitions": [
+    "KlumAST checkout or source dependency",
+    "composite build",
+    "project dependency to KlumAST",
+    "files() dependency to KlumAST",
+    "mavenLocal"
+  ]
+}

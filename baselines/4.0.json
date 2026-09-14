@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "releaseLine": "4.0.x",
+  "historicalPublicPin": "4.0.0",
+  "fixture": {
+    "path": ":direct-schema",
+    "topology": "one direct Schema consumer",
+    "revision": "initial SC-1 baseline"
+  },
+  "compatibilityCommitment": "The retained direct Schema contract is revalidated against the exact released 4.0.0 public coordinates.",
+  "taskGraph": [
+    "clean",
+    ":direct-schema:createKlumDslSourceMirrors",
+    ":direct-schema:javadoc",
+    ":direct-schema:check",
+    "verifyResolvedConsumerEvidence"
+  ],
+  "expectations": {
+    "normalSchemaPluginResolution": true,
+    "nestedExternalSignatureProjection": "known upstream failure: AnnoDocimal #99",
+    "legacyParagraphAndTagJavadoc": "blocked by the #99 projection failure before Javadoc can start",
+    "completedModelTest": true,
+    "mirrorIsNotBuildOrPublicationInput": true,
+    "historicalTestSupportIsNotRequired": true
+  },
+  "candidateRebinding": {
+    "eligible": true,
+    "status": "deferred to SC-2",
+    "rule": "Bind this unchanged fixture contract only to one complete staged candidate product, including marker and implementation."
+  },
+  "knownLimitations": [
+    "AnnoDocimal #99 and #100 are recorded integration seams, not Catwalk workaround targets.",
+    "SC-1a owns release-line-aware repair of KlumAST release/consumer; this baseline does not absorb it.",
+    "This baseline is not a remote bootstrap decision or a workflow/release gate."
+  ]
+}

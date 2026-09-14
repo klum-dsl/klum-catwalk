@@ -1,0 +1,20 @@
+pluginManagement {
+    def coordinates = new groovy.json.JsonSlurper().parse(file('coordinates.json'))
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+    plugins {
+        id coordinates.klumAst.pluginId version coordinates.klumAst.version
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'klum-catwalk'
+include ':direct-schema'

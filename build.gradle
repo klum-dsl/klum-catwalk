@@ -1,0 +1,130 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+plugins {
+    id 'base'
+}
+
+def coordinates = new JsonSlurper().parse(file('coordinates.json'))
+def expectedModules = coordinates.klumAst.publishedModules as List<String>
+def expectedMarker = coordinates.klumAst.pluginMarker as String
+def excludedModules = coordinates.klumAst.excludedHistoricalModules as List<String>
+
+configurations {
+    releasedKlumAstProduct {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+    schemaPluginMarker {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
+dependencies {
+    releasedKlumAstProduct platform("com.blackbuild.klum.ast:klum-ast-bom:${coordinates.klumAst.version}")
+    releasedKlumAstProduct "com.blackbuild.klum.ast:klum-ast-bom:${coordinates.klumAst.version}"
+    expectedModules.findAll { !it.contains(':klum-ast-bom:') }.each { releasedKlumAstProduct it }
+    schemaPluginMarker expectedMarker
+}
+
+def directSchema = project(':direct-schema')
+def mirrorDirectory = directSchema.layout.buildDirectory.dir('generated/sources/klum-dsl-ide/main')
+def containsPath = { files, File directory ->
+    def root = directory.canonicalFile
+    files.files.any { file ->
+        def candidate = file.canonicalFile
+        candidate == root || candidate.toPath().startsWith(root.toPath())
+    }
+}
+
+tasks.register('verifyResolvedConsumerEvidence') {
+    group = 'verification'
+    description = 'Records public-coordinate resolution and rejects generated-mirror input leaks.'
+    dependsOn ':direct-schema:check'
+    outputs.file(layout.buildDirectory.file('verification/resolved-consumer-evidence.json'))
+
+    doLast {
+        def mirror = mirrorDirectory.get().asFile
+        def sourceSets = directSchema.extensions.getByType(org.gradle.api.plugins.JavaPluginExtension).sourceSets
+        def main = sourceSets.main
+        def compileGroovy = directSchema.tasks.named('compileGroovy').get()
+        def javadoc = directSchema.tasks.named('javadoc').get()
+        def jar = directSchema.tasks.named('jar').get()
+        def checks = [
+                'main.java.source'          : containsPath(main.java.sourceDirectories, mirror),
+                'main.groovy.source'        : containsPath(main.groovy.sourceDirectories, mirror),
+                'compileGroovy.source'      : containsPath(compileGroovy.source, mirror),
+                'compileGroovy.classpath'   : containsPath(compileGroovy.classpath, mirror),
+                'javadoc.source'            : containsPath(javadoc.source, mirror),
+                'jar.source'                : containsPath(jar.source, mirror),
+                'main.runtimeClasspath'     : containsPath(main.runtimeClasspath, mirror),
+                'test.runtimeClasspath'     : containsPath(sourceSets.test.runtimeClasspath, mirror)
+        ]
+        checks.each { input, leaked ->
+            if (leaked) throw new GradleException("IDE source mirror leaked into ${input}: ${mirror}")
+        }
+
+        // A Maven BOM has no ordinary artifact variant, so retain the successfully
+        // resolved requested selectors instead of artifact-only evidence.
+        def product = configurations.releasedKlumAstProduct.incoming.resolutionResult.allDependencies
+                .collect { it.requested.displayName }.toSet()
+        def marker = configurations.schemaPluginMarker.incoming.resolutionResult.allDependencies
+                .collect { it.requested.displayName }.toSet()
+        def resolvedSchema = main.compileClasspath.incoming.resolutionResult.allComponents.collect { component ->
+            component.moduleVersion ? "${component.moduleVersion.group}:${component.moduleVersion.name}:${component.moduleVersion.version}" : component.id.displayName
+        }.findAll { it.startsWith('com.blackbuild.') }.sort()
+
+        expectedModules.each { expected ->
+            if (!product.contains(expected)) throw new GradleException("Missing released 4.0.0 product module: ${expected}")
+        }
+        if (!marker.contains(expectedMarker)) throw new GradleException("Schema plugin marker did not resolve normally: ${expectedMarker}")
+        excludedModules.each { forbidden ->
+            if (product.contains(forbidden) || resolvedSchema.contains(forbidden))
+                throw new GradleException("Historical 4.0.0 baseline must not require ${forbidden}")
+        }
+        if (!directSchema.pluginManager.hasPlugin(coordinates.klumAst.pluginId))
+            throw new GradleException("Schema plugin was not applied through its public marker: ${coordinates.klumAst.pluginId}")
+
+        def evidence = [
+                mode                  : coordinates.mode,
+                fixture               : coordinates.fixture,
+                gradle                : gradle.gradleVersion,
+                java                  : System.getProperty('java.version'),
+                pluginMarker          : marker.sort(),
+                pluginImplementation  : product.findAll { it.contains(':klum-ast-gradle-plugin:') }.sort(),
+                releasedProduct       : product.sort(),
+                schemaResolved        : resolvedSchema,
+                annodocimal           : resolvedSchema.findAll { it.startsWith('com.blackbuild.annodocimal:') },
+                mirrorDirectory       : mirror.toString(),
+                mirrorInputLeaks      : checks,
+                repositories          : coordinates.repositories,
+                excludedHistoricalModules: excludedModules
+        ]
+        def output = layout.buildDirectory.file('verification/resolved-consumer-evidence.json').get().asFile
+        output.parentFile.mkdirs()
+        output.text = JsonOutput.prettyPrint(JsonOutput.toJson(evidence)) + System.lineSeparator()
+    }
+}
+
+tasks.register('verifyDirectPublicBaseline') {
+    group = 'verification'
+    description = 'Runs SC-1’s exact clean-to-evidence public 4.0.0 task graph.'
+    dependsOn 'clean', ':direct-schema:createKlumDslSourceMirrors', ':direct-schema:javadoc',
+            ':direct-schema:check', 'verifyResolvedConsumerEvidence'
+}
+
+gradle.projectsEvaluated {
+    directSchema.tasks.named('createKlumDslSourceMirrors') {
+        mustRunAfter rootProject.tasks.named('clean')
+    }
+    directSchema.tasks.named('javadoc') {
+        mustRunAfter directSchema.tasks.named('createKlumDslSourceMirrors')
+    }
+    directSchema.tasks.named('check') {
+        mustRunAfter directSchema.tasks.named('javadoc')
+    }
+    tasks.named('verifyResolvedConsumerEvidence') {
+        mustRunAfter directSchema.tasks.named('check')
+    }
+}
