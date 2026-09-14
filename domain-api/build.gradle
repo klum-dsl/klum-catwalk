@@ -1,0 +1,12 @@
+plugins {
+    id 'java-library'
+    id 'java-test-fixtures'
+    id 'groovy'
+}
+
+dependencies {
+    testFixturesImplementation platform("org.codehaus.groovy:groovy-bom:${rootProject.layer3GroovyVersion}")
+    testFixturesImplementation 'org.codehaus.groovy:groovy'
+    testFixturesImplementation platform("org.spockframework:spock-bom:${rootProject.layer3SpockVersion}")
+    testFixturesImplementation 'org.spockframework:spock-core'
+}

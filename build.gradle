@@ -5,6 +5,10 @@ plugins {
     id 'base'
 }
 
+ext.layer3GroovyGeneration = '3'
+ext.layer3GroovyVersion = '3.0.25'
+ext.layer3SpockVersion = '2.4-groovy-3.0'
+
 def coordinates = new JsonSlurper().parse(file('coordinates.json'))
 def expectedModules = coordinates.klumAst.publishedModules as List<String>
 def expectedMarker = coordinates.klumAst.pluginMarker as String
@@ -112,6 +116,94 @@ tasks.register('verifyDirectPublicBaseline') {
     description = 'Runs SC-1’s exact clean-to-evidence public 4.0.0 task graph.'
     dependsOn 'clean', ':direct-schema:createKlumDslSourceMirrors', ':direct-schema:javadoc',
             ':direct-schema:check', 'verifyResolvedConsumerEvidence'
+}
+
+tasks.register('verifyLayer3ContractEvidence') {
+    group = 'verification'
+    description = 'Verifies the application-owned Layer 3 contract fixture, inherited test, and shared test pair.'
+    dependsOn ':schema:test'
+    outputs.file(layout.buildDirectory.file('verification/layer3-contract-evidence.json'))
+    outputs.upToDateWhen { false }
+
+    doLast {
+        def domainApi = project(':domain-api')
+        def schema = project(':schema')
+        def expected = [
+                groovy: layer3GroovyVersion,
+                spock : layer3SpockVersion
+        ]
+        def configurations = [
+                'domain-api test fixtures': domainApi.configurations.testFixturesRuntimeClasspath,
+                'schema tests'            : schema.configurations.testRuntimeClasspath
+        ]
+        def resolvedPairs = configurations.collectEntries { label, configuration ->
+            def components = configuration.incoming.resolutionResult.allComponents
+            def groovy = components.find {
+                it.moduleVersion?.group == 'org.codehaus.groovy' && it.moduleVersion.name == 'groovy'
+            }?.moduleVersion?.version
+            def spock = components.find {
+                it.moduleVersion?.group == 'org.spockframework' && it.moduleVersion.name == 'spock-core'
+            }?.moduleVersion?.version
+            if ([groovy: groovy, spock: spock] != expected) {
+                throw new GradleException("${label} resolved Groovy/Spock ${[groovy: groovy, spock: spock]}, expected ${expected}")
+            }
+            [(label): [groovy: groovy, spock: spock]]
+        }
+
+        def forbiddenTerms = ['org.klum.catwalk.schema', 'com.blackbuild', '_DSL', 'Builder', 'Cluster']
+        def contractSources = domainApi.fileTree('src/testFixtures') {
+            include '**/*.groovy'
+        }
+        def forbiddenReferences = contractSources.files.collectMany { source ->
+            forbiddenTerms.findAll { source.text.contains(it) }.collect { term ->
+                "${domainApi.projectDir.toPath().relativize(source.toPath())}: ${term}"
+            }
+        }
+        if (forbiddenReferences) {
+            throw new GradleException("Domain API contract fixture crosses its boundary: ${forbiddenReferences}")
+        }
+
+        def contractClass = 'org/klum/catwalk/api/EnvironmentContract.class'
+        def mainJar = domainApi.tasks.named('jar').get().archiveFile.get().asFile
+        def fixtureJar = domainApi.tasks.named('testFixturesJar').get().archiveFile.get().asFile
+        def contractPackaging = [
+                mainArtifact   : zipTree(mainJar).matching { include contractClass }.files.size(),
+                fixtureArtifact: zipTree(fixtureJar).matching { include contractClass }.files.size()
+        ]
+        if (contractPackaging != [mainArtifact: 0, fixtureArtifact: 1]) {
+            throw new GradleException("Domain API contract has unexpected artifact placement: ${contractPackaging}")
+        }
+
+        def report = schema.file('build/test-results/test/TEST-org.klum.catwalk.schema.CustomerEnvironmentContractSpec.xml')
+        if (!report.isFile()) {
+            throw new GradleException("Missing Schema test report: ${report}")
+        }
+        def suite = new XmlSlurper().parse(report)
+        def inheritedFeature = suite.testcase.find {
+            it.@name.text() == 'exposes its application through the Domain API'
+        }
+        if (!inheritedFeature || suite.@failures.text() != '0' || suite.@errors.text() != '0') {
+            throw new GradleException('The inherited Domain API assertion was not reported as a passing Schema test')
+        }
+
+        def evidence = [
+                mode                    : 'application-owned-contract-candidate',
+                klumAst                 : coordinates.klumAst.version,
+                fixtureDependency       : "testImplementation(testFixtures(project(':domain-api')))",
+                selectedPair            : expected,
+                resolvedPairs           : resolvedPairs,
+                inheritedAssertion      : [
+                        suite: suite.@name.text(),
+                        name : inheritedFeature.@name.text()
+                ],
+                contractPackaging       : contractPackaging,
+                forbiddenContractTerms  : forbiddenTerms,
+                forbiddenReferencesFound: forbiddenReferences
+        ]
+        def output = layout.buildDirectory.file('verification/layer3-contract-evidence.json').get().asFile
+        output.parentFile.mkdirs()
+        output.text = JsonOutput.prettyPrint(JsonOutput.toJson(evidence)) + System.lineSeparator()
+    }
 }
 
 gradle.projectsEvaluated {

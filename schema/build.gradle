@@ -1,0 +1,14 @@
+plugins {
+    id 'com.blackbuild.klum-ast-schema'
+}
+
+klumSchema {
+    groovyVersion = rootProject.layer3GroovyGeneration
+}
+
+dependencies {
+    implementation project(':domain-api')
+    implementation platform("org.codehaus.groovy:groovy-bom:${rootProject.layer3GroovyVersion}")
+    testImplementation platform("org.spockframework:spock-bom:${rootProject.layer3SpockVersion}")
+    testImplementation(testFixtures(project(':domain-api')))
+}

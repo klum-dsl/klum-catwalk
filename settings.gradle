@@ -18,3 +18,5 @@ dependencyResolutionManagement {
 
 rootProject.name = 'klum-catwalk'
 include ':direct-schema'
+include ':domain-api'
+include ':schema'

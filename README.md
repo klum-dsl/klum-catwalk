@@ -40,3 +40,23 @@ and rebinding are SC-2 work; they are intentionally absent here.
   it carries no override, patch, or compatibility workaround.
 - The Layer 3 topology, source-level Schema composition, workflows, remote
   bootstrap, and all candidate repository logic remain out of scope.
+
+## Layer 3 contract candidate
+
+The application-owned Layer 3 lane keeps its generic API contract in
+`:domain-api` test fixtures. `:schema` opts in explicitly and supplies the
+concrete KlumAST realization used to execute the inherited assertion:
+
+```shell
+./gradlew :schema:test verifyLayer3ContractEvidence
+```
+
+Both modules select Groovy 3.0.25 and Spock 2.4 for Groovy 3 from the root
+build. The verification records their resolved pair, checks the concrete
+Schema test report for the inherited API assertion, and rejects Schema,
+Builder, generated DSL, Cluster, or framework-internal references from the
+shared contract fixture.
+
+This lane is an implementation candidate related to KlumAST #755. It is not
+part of the retained 4.0.0 public-coordinate baseline or candidate-release
+evidence, and it adds no source-level Schema composition or shared convention.
