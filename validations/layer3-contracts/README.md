@@ -11,8 +11,11 @@ KlumAST Schema plugin:
   concrete `CustomerEnvironmentContractSpec` realization.
 - [`gradle.properties`](gradle.properties) selects one Groovy/Spock pair for
   both modules. `verifyLayer3ContractEvidence` checks the resolved pair,
-  fixture artifact boundary, API-only contract source, and inherited Spock test
-  report.
+  fixture artifact boundary, API-only contract source, successful inherited
+  Spock test report, and an isolated wiring harness. The harness proves the
+  wired control compiles and that removing only the test-fixtures dependency
+  makes `:schema:compileTestGroovy` fail on the missing contract while retaining
+  the Domain API production dependency.
 
 Run the normal project-local verification from this directory:
 

@@ -10,8 +10,6 @@ dependencies {
     implementation project(':domain-api')
 
     testImplementation(testFixtures(project(':domain-api')))
-    testImplementation "org.codehaus.groovy:groovy:${rootProject.selectedGroovyVersion}"
-    testImplementation "org.spockframework:spock-core:${rootProject.selectedSpockVersion}"
 }
 
 tasks.named('test') {

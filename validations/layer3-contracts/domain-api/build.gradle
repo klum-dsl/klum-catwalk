@@ -5,6 +5,8 @@ plugins {
 }
 
 dependencies {
-    testFixturesImplementation "org.codehaus.groovy:groovy:${rootProject.selectedGroovyVersion}"
-    testFixturesImplementation "org.spockframework:spock-core:${rootProject.selectedSpockVersion}"
+    // The compiled fixture exposes GroovyObject and extends Specification, so
+    // both types are part of the test-fixture API, never the production API.
+    testFixturesApi "org.codehaus.groovy:groovy:${rootProject.selectedGroovyVersion}"
+    testFixturesApi "org.spockframework:spock-core:${rootProject.selectedSpockVersion}"
 }
