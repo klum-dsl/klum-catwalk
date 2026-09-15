@@ -1,5 +1,36 @@
+# Gradle
 .gradle/
 build/
 **/build/
 verification/
 work/
+
+# IntelliJ IDEA and Fleet
+.idea/
+.fleet/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# Visual Studio Code
+.vscode/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
