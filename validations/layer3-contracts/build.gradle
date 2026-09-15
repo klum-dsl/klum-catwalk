@@ -1,3 +1,132 @@
+import groovy.json.JsonOutput
+import groovy.xml.XmlSlurper
+import java.util.zip.ZipFile
+
 plugins {
     id 'base'
+}
+
+ext {
+    selectedGroovyLine = providers.gradleProperty('groovyLine').get()
+    selectedGroovyVersion = providers.gradleProperty('groovyVersion').get()
+    selectedSpockVersion = providers.gradleProperty('spockVersion').get()
+}
+
+def selectedCoordinate = { Project selectedProject, String configurationName, String group, String module ->
+    def matches = selectedProject.configurations.named(configurationName).get()
+            .incoming.resolutionResult.allComponents
+            .findAll { component ->
+                component.moduleVersion?.group == group && component.moduleVersion?.name == module
+            }
+            .collect { component ->
+                "${component.moduleVersion.group}:${component.moduleVersion.name}:${component.moduleVersion.version}".toString()
+            }
+            .unique()
+    if (matches.size() != 1) {
+        throw new GradleException(
+                "Expected exactly one ${group}:${module} in ${selectedProject.path}:${configurationName}, found ${matches}"
+        )
+    }
+    matches[0]
+}
+
+tasks.register('verifyLayer3ContractEvidence') {
+    group = 'verification'
+    description = 'Verifies API-only fixture packaging, inherited execution, and Groovy/Spock alignment.'
+    dependsOn ':domain-api:jar', ':domain-api:testFixturesJar', ':schema:test'
+    outputs.file(layout.buildDirectory.file('verification/layer3-contract-evidence.json'))
+
+    doLast {
+        def domainApi = project(':domain-api')
+        def schema = project(':schema')
+        def expectedGroovy = "org.codehaus.groovy:groovy:${selectedGroovyVersion}".toString()
+        def expectedSpock = "org.spockframework:spock-core:${selectedSpockVersion}".toString()
+        def resolvedPairs = [
+                'domain-api': [
+                        groovy: selectedCoordinate(domainApi, 'testFixturesCompileClasspath', 'org.codehaus.groovy', 'groovy'),
+                        spock : selectedCoordinate(domainApi, 'testFixturesCompileClasspath', 'org.spockframework', 'spock-core')
+                ],
+                schema      : [
+                        groovy: selectedCoordinate(schema, 'testCompileClasspath', 'org.codehaus.groovy', 'groovy'),
+                        spock : selectedCoordinate(schema, 'testCompileClasspath', 'org.spockframework', 'spock-core')
+                ]
+        ]
+        resolvedPairs.each { module, pair ->
+            if (pair.groovy != expectedGroovy || pair.spock != expectedSpock) {
+                throw new GradleException("${module} resolved an unaligned Groovy/Spock pair: ${pair}")
+            }
+        }
+
+        def contractClass = 'org/klum/catwalk/api/contract/EnvironmentContract.class'
+        def mainJar = domainApi.tasks.named('jar').get().archiveFile.get().asFile
+        def fixturesJar = domainApi.tasks.named('testFixturesJar').get().archiveFile.get().asFile
+        new ZipFile(mainJar).withCloseable { archive ->
+            if (archive.getEntry(contractClass) != null) {
+                throw new GradleException("Domain API contract leaked into the main artifact: ${contractClass}")
+            }
+        }
+        new ZipFile(fixturesJar).withCloseable { archive ->
+            if (archive.getEntry(contractClass) == null) {
+                throw new GradleException("Domain API contract is absent from the test-fixtures artifact: ${contractClass}")
+            }
+        }
+
+        def contractSource = domainApi.file('src/testFixtures/groovy/org/klum/catwalk/api/contract/EnvironmentContract.groovy')
+        def forbiddenReferences = [
+                'org.klum.catwalk.schema',
+                'com.blackbuild.klum.ast',
+                '_DSL',
+                'Builder',
+                'Cluster'
+        ].findAll { contractSource.text.contains(it) }
+        if (!forbiddenReferences.empty) {
+            throw new GradleException("API contract contains forbidden Layer 3 references: ${forbiddenReferences}")
+        }
+
+        def testReport = schema.layout.buildDirectory.file(
+                'test-results/test/TEST-org.klum.catwalk.schema.CustomerEnvironmentContractSpec.xml'
+        ).get().asFile
+        if (!testReport.isFile()) {
+            throw new GradleException("Missing Schema contract test report: ${testReport}")
+        }
+        def suite = new XmlSlurper().parse(testReport)
+        def inheritedFeature = suite.testcase.find {
+            it.@name.text() == 'exposes generic primary application' &&
+                    it.@classname.text() == 'org.klum.catwalk.schema.CustomerEnvironmentContractSpec'
+        }
+        if (inheritedFeature.isEmpty()) {
+            throw new GradleException('The inherited Domain API contract assertion was not reported by :schema:test')
+        }
+
+        def pairReport = schema.layout.buildDirectory.file(
+                'test-results/test/TEST-org.klum.catwalk.schema.GroovySpockAlignmentSpec.xml'
+        ).get().asFile
+        if (!pairReport.isFile()) {
+            throw new GradleException("Missing Groovy/Spock alignment test report: ${pairReport}")
+        }
+
+        def evidence = [
+                fixture             : rootProject.name,
+                klumAstVersion       : providers.gradleProperty('klumAstVersion').get(),
+                selectedPair         : [groovy: expectedGroovy, spock: expectedSpock],
+                resolvedPairs        : resolvedPairs,
+                fixtureContract      : contractClass,
+                absentFromMainJar    : true,
+                presentInFixturesJar : true,
+                forbiddenReferences : forbiddenReferences,
+                inheritedTest        : [
+                        className: inheritedFeature.@classname.text(),
+                        name     : inheritedFeature.@name.text()
+                ],
+                alignmentTestReport  : pairReport.name,
+                optionalModelIncluded: false
+        ]
+        def output = layout.buildDirectory.file('verification/layer3-contract-evidence.json').get().asFile
+        output.parentFile.mkdirs()
+        output.text = JsonOutput.prettyPrint(JsonOutput.toJson(evidence)) + System.lineSeparator()
+    }
+}
+
+tasks.named('check') {
+    dependsOn ':domain-api:check', ':schema:check', 'verifyLayer3ContractEvidence'
 }

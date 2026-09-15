@@ -9,7 +9,7 @@ Gradle build and intentionally has no root build files or Gradle wrapper.
 - [`validations/direct-schema`](validations/direct-schema/README.md) — the SC-1
   direct published-consumer proof.
 - [`validations/layer3-contracts`](validations/layer3-contracts/README.md) — the
-  reserved independent SC-3 validation project.
+  independent SC-3 Layer 3 API + Schema contract validation.
 - [`showcases`](showcases/README.md) — the non-Gradle grouping directory for
   future independent, named showcase projects.
 

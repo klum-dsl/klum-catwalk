@@ -1,0 +1,10 @@
+plugins {
+    id 'java-library'
+    id 'java-test-fixtures'
+    id 'groovy'
+}
+
+dependencies {
+    testFixturesImplementation "org.codehaus.groovy:groovy:${rootProject.selectedGroovyVersion}"
+    testFixturesImplementation "org.spockframework:spock-core:${rootProject.selectedSpockVersion}"
+}
