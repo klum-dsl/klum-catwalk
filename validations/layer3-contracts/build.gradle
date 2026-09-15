@@ -14,6 +14,13 @@ ext {
     selectedSpockVersion = providers.gradleProperty('spockVersion').get()
 }
 
+def effectiveSelection = [
+        klumAstVersion: providers.gradleProperty('klumAstVersion').get(),
+        groovyLine    : selectedGroovyLine,
+        groovyVersion : selectedGroovyVersion,
+        spockVersion  : selectedSpockVersion
+]
+
 def selectedCoordinate = { Project selectedProject, String configurationName, String group, String module ->
     def matches = selectedProject.configurations.named(configurationName).get()
             .incoming.resolutionResult.allComponents
@@ -67,6 +74,7 @@ tasks.register('verifyFixtureWiring') {
         include 'gradle/wrapper/**', 'domain-api/**', 'schema/**'
         exclude '**/build/**'
     })
+    inputs.properties(effectiveSelection)
     outputs.dir(layout.buildDirectory.dir('verification/fixture-wiring'))
 
     doLast {
@@ -104,10 +112,10 @@ tasks.register('verifyFixtureWiring') {
             def wrapperCommand = windows
                     ? ['cmd', '/c', rootProject.file('gradlew.bat')]
                     : [rootProject.file('gradlew')]
+            def propertyArguments = effectiveSelection.collect { name, value -> "-P${name}=${value}".toString() }
             def result = exec {
                 workingDir rootDir
-                commandLine(wrapperCommand + [
-                        '-p', projectDirectory,
+                commandLine(wrapperCommand + ['-p', projectDirectory] + propertyArguments + [
                         ':schema:compileTestGroovy', '--no-daemon', '--console=plain', '--warning-mode=none'
                 ])
                 standardOutput output
@@ -136,7 +144,8 @@ tasks.register('verifyFixtureWiring') {
         }
 
         def evidence = [
-                wiredControl : [task: ':schema:compileTestGroovy', outcome: 'passed'],
+                effectiveSelection: effectiveSelection,
+                wiredControl      : [task: ':schema:compileTestGroovy', outcome: 'passed'],
                 missingFixture: [
                         removedDependency           : "testFixtures(project(':domain-api'))",
                         productionDependencyRetained: true,
