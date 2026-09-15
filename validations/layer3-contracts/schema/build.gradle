@@ -3,7 +3,7 @@ plugins {
 }
 
 klumSchema {
-    groovyVersion = rootProject.selectedGroovyLine
+    groovyVersion = rootProject.layer3TestPair.groovyLine
 }
 
 dependencies {
@@ -12,8 +12,15 @@ dependencies {
     testImplementation(testFixtures(project(':domain-api')))
 }
 
+configurations.matching { it.name in ['testCompileClasspath', 'testRuntimeClasspath'] }.configureEach {
+    resolutionStrategy.force(
+            rootProject.layer3TestPair.groovyCoordinate,
+            rootProject.layer3TestPair.spockCoordinate
+    )
+}
+
 tasks.named('test') {
     useJUnitPlatform()
-    systemProperty 'catwalk.expectedGroovyVersion', rootProject.selectedGroovyVersion
-    systemProperty 'catwalk.expectedSpockVersion', rootProject.selectedSpockVersion
+    systemProperty 'catwalk.expectedGroovyVersion', rootProject.layer3TestPair.groovyVersion
+    systemProperty 'catwalk.expectedSpockVersion', rootProject.layer3TestPair.spockVersion
 }

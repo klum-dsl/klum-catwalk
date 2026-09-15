@@ -9,10 +9,15 @@ KlumAST Schema plugin:
 - `:schema` applies the published `com.blackbuild.klum-ast-schema` plugin,
   depends explicitly on `testFixtures(project(':domain-api'))`, and supplies a
   concrete `CustomerEnvironmentContractSpec` realization.
-- [`gradle.properties`](gradle.properties) selects one Groovy/Spock pair for
-  both modules. `verifyLayer3ContractEvidence` checks the resolved pair,
-  fixture artifact boundary, API-only contract source, successful inherited
-  Spock test report, and an isolated wiring harness. The harness forwards the
+- [`gradle.properties`](gradle.properties) declares the one Groovy/Spock pair
+for this project; the root build exposes it as the sole `layer3TestPair`
+authority consumed by both modules. `verifyLayer3TestPairAlignment` proves the
+Domain API fixture compile/runtime classpaths and Schema test compile/runtime
+classpaths resolve that exact pair. `verifyGroovySpockMismatchDiagnostics` runs
+a disposable Schema dependency drift and requires the alignment task's focused
+diagnostic. `verifyLayer3ContractEvidence` includes both pair-evidence files,
+fixture artifact boundary, API-only contract source, successful inherited
+Spock test report, and an isolated wiring harness. The harness forwards the
   parent build's effective version selection, proves the wired control compiles,
   and shows that removing only the test-fixtures dependency makes
   `:schema:compileTestGroovy` fail on the missing contract while retaining the
@@ -25,8 +30,10 @@ Run the normal project-local verification from this directory:
 ```
 
 For the focused contract path, run
-`./gradlew :schema:test verifyLayer3ContractEvidence`. The generated evidence
-is written below `build/verification/`; build output is not retained in Git.
+`./gradlew :schema:test verifyLayer3ContractEvidence`. To inspect only CT-3,
+run `./gradlew verifyLayer3TestPairAlignment verifyGroovySpockMismatchDiagnostics`.
+The generated evidence is written below `build/verification/`; build output is
+not retained in Git.
 
 ## Boundaries
 
@@ -37,6 +44,9 @@ is written below `build/verification/`; build output is not retained in Git.
   `*_DSL` types, Builders, Cluster helpers, and KlumAST runtime internals remain
   outside its surface.
 - The optional Model module is deliberately absent.
+- This project selects one Groovy 3 / Spock pair; it makes no Groovy 3/4/5
+  compatibility-matrix claim. A future project that elects to make one must
+  compile and run the full fixture independently for each pair.
 - Dependencies use ordinary binary project wiring and public repositories.
   There is no source composition, composite substitution, KlumAST checkout,
   `mavenLocal()`, or deliberately broken negative-build fixture.
