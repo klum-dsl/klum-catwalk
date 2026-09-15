@@ -1,3 +1,276 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import groovy.xml.XmlSlurper
+import java.util.Locale
+import java.util.zip.ZipFile
+
 plugins {
     id 'base'
+}
+
+ext {
+    selectedGroovyLine = providers.gradleProperty('groovyLine').get()
+    selectedGroovyVersion = providers.gradleProperty('groovyVersion').get()
+    selectedSpockVersion = providers.gradleProperty('spockVersion').get()
+}
+
+def effectiveSelection = [
+        klumAstVersion: providers.gradleProperty('klumAstVersion').get(),
+        groovyLine    : selectedGroovyLine,
+        groovyVersion : selectedGroovyVersion,
+        spockVersion  : selectedSpockVersion
+]
+
+def selectedCoordinate = { Project selectedProject, String configurationName, String group, String module ->
+    def matches = selectedProject.configurations.named(configurationName).get()
+            .incoming.resolutionResult.allComponents
+            .findAll { component ->
+                component.moduleVersion?.group == group && component.moduleVersion?.name == module
+            }
+            .collect { component ->
+                "${component.moduleVersion.group}:${component.moduleVersion.name}:${component.moduleVersion.version}".toString()
+            }
+            .unique()
+    if (matches.size() != 1) {
+        throw new GradleException(
+                "Expected exactly one ${group}:${module} in ${selectedProject.path}:${configurationName}, found ${matches}"
+        )
+    }
+    matches[0]
+}
+
+def requireSuccessfulTestCase = { File report, String className, String testName ->
+    if (!report.isFile()) {
+        throw new GradleException("Missing test report: ${report}")
+    }
+    def suite = new XmlSlurper().parse(report)
+    def matches = suite.testcase.findAll {
+        it.@name.text() == testName && it.@classname.text() == className
+    }
+    if (matches.size() != 1) {
+        throw new GradleException("Expected one executed ${className}#${testName} case, found ${matches.size()}")
+    }
+    def testCase = matches[0]
+    def unsuccessfulNodes = testCase.children().findAll {
+        it.name() in ['failure', 'error', 'skipped']
+    }
+    if (!unsuccessfulNodes.isEmpty()) {
+        throw new GradleException("Test case did not pass: ${className}#${testName}")
+    }
+    def suiteCounts = ['failures', 'errors', 'skipped'].collectEntries { attribute ->
+        [(attribute): (suite.@"${attribute}".text() ?: '0').toInteger()]
+    }
+    if (suiteCounts.values().any { it != 0 }) {
+        throw new GradleException("Test report contains unsuccessful cases: ${report} ${suiteCounts}")
+    }
+    [className: className, name: testName, status: 'passed']
+}
+
+tasks.register('verifyFixtureWiring') {
+    group = 'verification'
+    description = 'Proves the explicit test-fixtures edge is required for Schema contract compilation.'
+    inputs.files(fileTree(rootDir) {
+        include 'settings.gradle', 'build.gradle', 'gradle.properties', 'gradlew', 'gradlew.bat'
+        include 'gradle/wrapper/**', 'domain-api/**', 'schema/**'
+        exclude '**/build/**'
+    })
+    inputs.properties(effectiveSelection)
+    outputs.dir(layout.buildDirectory.dir('verification/fixture-wiring'))
+
+    doLast {
+        def outputDirectory = layout.buildDirectory.dir('verification/fixture-wiring').get().asFile
+        def controlRoot = new File(outputDirectory, 'control')
+        def missingFixtureRoot = new File(outputDirectory, 'missing-fixture')
+        delete controlRoot, missingFixtureRoot
+
+        [controlRoot, missingFixtureRoot].each { target ->
+            copy {
+                from rootDir
+                into target
+                include 'settings.gradle', 'build.gradle', 'gradle.properties'
+                include 'domain-api/**', 'schema/**'
+                exclude '**/build/**'
+            }
+        }
+
+        def fixtureDependency = "    testImplementation(testFixtures(project(':domain-api')))"
+        def missingFixtureBuild = new File(missingFixtureRoot, 'schema/build.gradle')
+        def originalBuild = missingFixtureBuild.text
+        if (originalBuild.readLines().count { it == fixtureDependency } != 1) {
+            throw new GradleException('Expected exactly one explicit Domain API test-fixtures dependency')
+        }
+        missingFixtureBuild.text = originalBuild.readLines()
+                .findAll { it != fixtureDependency }
+                .join(System.lineSeparator()) + System.lineSeparator()
+        if (!missingFixtureBuild.text.contains("implementation project(':domain-api')")) {
+            throw new GradleException('Negative wiring harness removed the Domain API production dependency')
+        }
+
+        def runCompile = { File projectDirectory, File logFile ->
+            def output = new ByteArrayOutputStream()
+            def windows = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')
+            def wrapperCommand = windows
+                    ? ['cmd', '/c', rootProject.file('gradlew.bat')]
+                    : [rootProject.file('gradlew')]
+            def propertyArguments = effectiveSelection.collect { name, value -> "-P${name}=${value}".toString() }
+            def result = exec {
+                workingDir rootDir
+                commandLine(wrapperCommand + ['-p', projectDirectory] + propertyArguments + [
+                        ':schema:compileTestGroovy', '--no-daemon', '--console=plain', '--warning-mode=none'
+                ])
+                standardOutput output
+                errorOutput output
+                ignoreExitValue = true
+            }
+            logFile.parentFile.mkdirs()
+            logFile.text = output.toString('UTF-8')
+            [exitValue: result.exitValue, output: logFile.text]
+        }
+
+        def controlLog = new File(outputDirectory, 'control.log')
+        def missingFixtureLog = new File(outputDirectory, 'missing-fixture.log')
+        def control = runCompile(controlRoot, controlLog)
+        if (control.exitValue != 0) {
+            throw new GradleException("Wired control failed; see ${controlLog}")
+        }
+
+        def missingFixture = runCompile(missingFixtureRoot, missingFixtureLog)
+        def failedAtExpectedTask = missingFixture.output.contains('Task :schema:compileTestGroovy FAILED')
+        def missingExpectedType = missingFixture.output.contains(
+                'unable to resolve class org.klum.catwalk.api.contract.EnvironmentContract'
+        )
+        if (missingFixture.exitValue == 0 || !failedAtExpectedTask || !missingExpectedType) {
+            throw new GradleException("Missing-fixture build did not fail at the expected contract seam; see ${missingFixtureLog}")
+        }
+
+        def evidence = [
+                effectiveSelection: effectiveSelection,
+                wiredControl      : [task: ':schema:compileTestGroovy', outcome: 'passed'],
+                missingFixture: [
+                        removedDependency           : "testFixtures(project(':domain-api'))",
+                        productionDependencyRetained: true,
+                        task                        : ':schema:compileTestGroovy',
+                        outcome                     : 'expected-failure',
+                        missingType                 : 'org.klum.catwalk.api.contract.EnvironmentContract'
+                ]
+        ]
+        def evidenceFile = new File(outputDirectory, 'fixture-wiring-evidence.json')
+        evidenceFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(evidence)) + System.lineSeparator()
+    }
+}
+
+tasks.register('verifyLayer3ContractEvidence') {
+    group = 'verification'
+    description = 'Verifies API-only fixture packaging, inherited execution, and Groovy/Spock alignment.'
+    dependsOn ':domain-api:jar', ':domain-api:testFixturesJar', ':schema:test', 'verifyFixtureWiring'
+    outputs.file(layout.buildDirectory.file('verification/layer3-contract-evidence.json'))
+    outputs.upToDateWhen { false }
+
+    doLast {
+        def domainApi = project(':domain-api')
+        def schema = project(':schema')
+        def expectedGroovy = "org.codehaus.groovy:groovy:${selectedGroovyVersion}".toString()
+        def expectedSpock = "org.spockframework:spock-core:${selectedSpockVersion}".toString()
+        def resolvedPairs = [
+                'domain-api': [
+                        groovy: selectedCoordinate(domainApi, 'testFixturesCompileClasspath', 'org.codehaus.groovy', 'groovy'),
+                        spock : selectedCoordinate(domainApi, 'testFixturesCompileClasspath', 'org.spockframework', 'spock-core')
+                ],
+                schema      : [
+                        groovy: selectedCoordinate(schema, 'testCompileClasspath', 'org.codehaus.groovy', 'groovy'),
+                        spock : selectedCoordinate(schema, 'testCompileClasspath', 'org.spockframework', 'spock-core')
+                ]
+        ]
+        resolvedPairs.each { module, pair ->
+            if (pair.groovy != expectedGroovy || pair.spock != expectedSpock) {
+                throw new GradleException("${module} resolved an unaligned Groovy/Spock pair: ${pair}")
+            }
+        }
+
+        def productionTestDependencies = ['apiElements', 'runtimeElements'].collectMany { configurationName ->
+            domainApi.configurations.named(configurationName).get().allDependencies.collect { dependency ->
+                "${dependency.group}:${dependency.name}".toString()
+            }
+        }.findAll { coordinate ->
+            coordinate.startsWith('org.codehaus.groovy:') || coordinate.startsWith('org.spockframework:')
+        }
+        if (!productionTestDependencies.isEmpty()) {
+            throw new GradleException("Test dependencies leaked into the Domain API production variants: ${productionTestDependencies}")
+        }
+
+        def contractClass = 'org/klum/catwalk/api/contract/EnvironmentContract.class'
+        def mainJar = domainApi.tasks.named('jar').get().archiveFile.get().asFile
+        def fixturesJar = domainApi.tasks.named('testFixturesJar').get().archiveFile.get().asFile
+        new ZipFile(mainJar).withCloseable { archive ->
+            if (archive.getEntry(contractClass) != null) {
+                throw new GradleException("Domain API contract leaked into the main artifact: ${contractClass}")
+            }
+        }
+        new ZipFile(fixturesJar).withCloseable { archive ->
+            if (archive.getEntry(contractClass) == null) {
+                throw new GradleException("Domain API contract is absent from the test-fixtures artifact: ${contractClass}")
+            }
+        }
+
+        def contractSource = domainApi.file('src/testFixtures/groovy/org/klum/catwalk/api/contract/EnvironmentContract.groovy')
+        def forbiddenReferences = [
+                'org.klum.catwalk.schema',
+                'com.blackbuild.klum.ast',
+                '_DSL',
+                'Builder',
+                'Cluster'
+        ].findAll { contractSource.text.contains(it) }
+        if (!forbiddenReferences.empty) {
+            throw new GradleException("API contract contains forbidden Layer 3 references: ${forbiddenReferences}")
+        }
+
+        def contractReport = schema.layout.buildDirectory.file(
+                'test-results/test/TEST-org.klum.catwalk.schema.CustomerEnvironmentContractSpec.xml'
+        ).get().asFile
+        def inheritedFeature = requireSuccessfulTestCase(
+                contractReport,
+                'org.klum.catwalk.schema.CustomerEnvironmentContractSpec',
+                'exposes generic primary application'
+        )
+
+        def pairReport = schema.layout.buildDirectory.file(
+                'test-results/test/TEST-org.klum.catwalk.schema.GroovySpockAlignmentSpec.xml'
+        ).get().asFile
+        def alignmentFeature = requireSuccessfulTestCase(
+                pairReport,
+                'org.klum.catwalk.schema.GroovySpockAlignmentSpec',
+                'uses the centrally selected Groovy and Spock pair'
+        )
+
+        def fixtureWiringFile = layout.buildDirectory.file(
+                'verification/fixture-wiring/fixture-wiring-evidence.json'
+        ).get().asFile
+        if (!fixtureWiringFile.isFile()) {
+            throw new GradleException("Missing fixture-wiring evidence: ${fixtureWiringFile}")
+        }
+        def fixtureWiring = new JsonSlurper().parse(fixtureWiringFile)
+
+        def evidence = [
+                fixture             : rootProject.name,
+                klumAstVersion       : providers.gradleProperty('klumAstVersion').get(),
+                selectedPair         : [groovy: expectedGroovy, spock: expectedSpock],
+                resolvedPairs        : resolvedPairs,
+                fixtureContract      : contractClass,
+                absentFromMainJar    : true,
+                presentInFixturesJar : true,
+                forbiddenReferences : forbiddenReferences,
+                productionTestDependencies: productionTestDependencies,
+                inheritedTest        : inheritedFeature,
+                alignmentTest        : alignmentFeature,
+                fixtureWiring        : fixtureWiring,
+                optionalModelIncluded: false
+        ]
+        def output = layout.buildDirectory.file('verification/layer3-contract-evidence.json').get().asFile
+        output.parentFile.mkdirs()
+        output.text = JsonOutput.prettyPrint(JsonOutput.toJson(evidence)) + System.lineSeparator()
+    }
+}
+
+tasks.named('check') {
+    dependsOn ':domain-api:check', ':schema:check', 'verifyLayer3ContractEvidence'
 }

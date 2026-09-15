@@ -1,0 +1,12 @@
+plugins {
+    id 'java-library'
+    id 'java-test-fixtures'
+    id 'groovy'
+}
+
+dependencies {
+    // The compiled fixture exposes GroovyObject and extends Specification, so
+    // both types are part of the test-fixture API, never the production API.
+    testFixturesApi "org.codehaus.groovy:groovy:${rootProject.selectedGroovyVersion}"
+    testFixturesApi "org.spockframework:spock-core:${rootProject.selectedSpockVersion}"
+}

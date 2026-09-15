@@ -1,0 +1,19 @@
+plugins {
+    id 'com.blackbuild.klum-ast-schema' version "${klumAstVersion}"
+}
+
+klumSchema {
+    groovyVersion = rootProject.selectedGroovyLine
+}
+
+dependencies {
+    implementation project(':domain-api')
+
+    testImplementation(testFixtures(project(':domain-api')))
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    systemProperty 'catwalk.expectedGroovyVersion', rootProject.selectedGroovyVersion
+    systemProperty 'catwalk.expectedSpockVersion', rootProject.selectedSpockVersion
+}
