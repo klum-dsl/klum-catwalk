@@ -9,8 +9,9 @@ klumSchema {
 }
 
 def selectedKlumAstVersion = providers.gradleProperty('klumAstVersion').get()
+def retainedBaselineVersion = '4.0.0'
 def pluginId = 'com.blackbuild.klum-ast-schema'
-def expectedMarker = "${pluginId}:${pluginId}.gradle.plugin:${selectedKlumAstVersion}".toString()
+def expectedMarker = "${pluginId}:${pluginId}.gradle.plugin:${retainedBaselineVersion}".toString()
 def expectedModules = [
         'klum-ast-bom',
         'klum-ast-annotations',
@@ -19,8 +20,8 @@ def expectedModules = [
         'klum-ast-jackson',
         'klum-ast-bean-validation',
         'klum-ast-gradle-plugin'
-].collect { "com.blackbuild.klum.ast:${it}:${selectedKlumAstVersion}".toString() }
-def excludedModules = ["com.blackbuild.klum.ast:klum-ast-test-support:${selectedKlumAstVersion}".toString()]
+].collect { "com.blackbuild.klum.ast:${it}:${retainedBaselineVersion}".toString() }
+def excludedModules = ["com.blackbuild.klum.ast:klum-ast-test-support:${retainedBaselineVersion}".toString()]
 
 configurations {
     releasedKlumAstProduct {
@@ -34,8 +35,8 @@ configurations {
 }
 
 dependencies {
-    releasedKlumAstProduct platform("com.blackbuild.klum.ast:klum-ast-bom:${selectedKlumAstVersion}")
-    releasedKlumAstProduct "com.blackbuild.klum.ast:klum-ast-bom:${selectedKlumAstVersion}"
+    releasedKlumAstProduct platform("com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}")
+    releasedKlumAstProduct "com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}"
     expectedModules.findAll { !it.contains(':klum-ast-bom:') }.each { releasedKlumAstProduct it }
     schemaPluginMarker expectedMarker
 }
@@ -52,7 +53,7 @@ def containsPath = { files, File directory ->
 
 tasks.register('verifyResolvedConsumerEvidence') {
     group = 'verification'
-    description = 'Records public-coordinate resolution and rejects generated-mirror input leaks.'
+    description = 'Records retained public 4.0.0 resolution and rejects generated-mirror input leaks.'
     dependsOn 'check'
     outputs.file(layout.buildDirectory.file('verification/resolved-consumer-evidence.json'))
 
@@ -101,7 +102,7 @@ tasks.register('verifyResolvedConsumerEvidence') {
         def evidence = [
                 mode                  : 'public-release',
                 fixture               : rootProject.name,
-                klumAstVersion        : selectedKlumAstVersion,
+                klumAstVersion        : retainedBaselineVersion,
                 gradle                : gradle.gradleVersion,
                 java                  : System.getProperty('java.version'),
                 pluginMarker          : marker.sort(),
@@ -122,8 +123,20 @@ tasks.register('verifyResolvedConsumerEvidence') {
 
 tasks.register('verifyDirectPublicBaseline') {
     group = 'verification'
-    description = 'Runs SC-1’s clean-to-evidence task graph for the selected public KlumAST version.'
+    description = 'Runs SC-1’s retained clean-to-evidence public 4.0.0 task graph.'
     dependsOn 'clean', 'createKlumDslSourceMirrors', 'javadoc', 'check', 'verifyResolvedConsumerEvidence'
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    def baselineTaskRequested = ['verifyResolvedConsumerEvidence', 'verifyDirectPublicBaseline'].any {
+        taskGraph.hasTask(tasks.named(it).get())
+    }
+    if (baselineTaskRequested && selectedKlumAstVersion != retainedBaselineVersion) {
+        throw new GradleException(
+                "SC-1 evidence is retained for KlumAST ${retainedBaselineVersion}; " +
+                        "use test/check for ${selectedKlumAstVersion} smoke coverage until SC-1a/SC-2 provides a product manifest."
+        )
+    }
 }
 
 gradle.projectsEvaluated {
