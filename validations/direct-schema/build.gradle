@@ -3,9 +3,14 @@ import groovy.json.JsonSlurper
 
 plugins {
     id 'base'
+    id 'com.blackbuild.klum-ast-schema'
 }
 
-def coordinates = new JsonSlurper().parse(file('coordinates.json'))
+klumSchema {
+    groovyVersion = '3'
+}
+
+def coordinates = new JsonSlurper().parse(file('../../coordinates.json'))
 def expectedModules = coordinates.klumAst.publishedModules as List<String>
 def expectedMarker = coordinates.klumAst.pluginMarker as String
 def excludedModules = coordinates.klumAst.excludedHistoricalModules as List<String>
@@ -28,8 +33,8 @@ dependencies {
     schemaPluginMarker expectedMarker
 }
 
-def directSchema = project(':direct-schema')
-def mirrorDirectory = directSchema.layout.buildDirectory.dir('generated/sources/klum-dsl-ide/main')
+def consumerProject = project
+def mirrorDirectory = layout.buildDirectory.dir('generated/sources/klum-dsl-ide/main')
 def containsPath = { files, File directory ->
     def root = directory.canonicalFile
     files.files.any { file ->
@@ -41,16 +46,16 @@ def containsPath = { files, File directory ->
 tasks.register('verifyResolvedConsumerEvidence') {
     group = 'verification'
     description = 'Records public-coordinate resolution and rejects generated-mirror input leaks.'
-    dependsOn ':direct-schema:check'
+    dependsOn 'check'
     outputs.file(layout.buildDirectory.file('verification/resolved-consumer-evidence.json'))
 
     doLast {
         def mirror = mirrorDirectory.get().asFile
-        def sourceSets = directSchema.extensions.getByType(org.gradle.api.plugins.JavaPluginExtension).sourceSets
+        def sourceSets = consumerProject.extensions.getByType(org.gradle.api.plugins.JavaPluginExtension).sourceSets
         def main = sourceSets.main
-        def compileGroovy = directSchema.tasks.named('compileGroovy').get()
-        def javadoc = directSchema.tasks.named('javadoc').get()
-        def jar = directSchema.tasks.named('jar').get()
+        def compileGroovy = consumerProject.tasks.named('compileGroovy').get()
+        def javadoc = consumerProject.tasks.named('javadoc').get()
+        def jar = consumerProject.tasks.named('jar').get()
         def checks = [
                 'main.java.source'          : containsPath(main.java.sourceDirectories, mirror),
                 'main.groovy.source'        : containsPath(main.groovy.sourceDirectories, mirror),
@@ -83,7 +88,7 @@ tasks.register('verifyResolvedConsumerEvidence') {
             if (product.contains(forbidden) || resolvedSchema.contains(forbidden))
                 throw new GradleException("Historical 4.0.0 baseline must not require ${forbidden}")
         }
-        if (!directSchema.pluginManager.hasPlugin(coordinates.klumAst.pluginId))
+        if (!consumerProject.pluginManager.hasPlugin(coordinates.klumAst.pluginId))
             throw new GradleException("Schema plugin was not applied through its public marker: ${coordinates.klumAst.pluginId}")
 
         def evidence = [
@@ -110,21 +115,20 @@ tasks.register('verifyResolvedConsumerEvidence') {
 tasks.register('verifyDirectPublicBaseline') {
     group = 'verification'
     description = 'Runs SC-1’s exact clean-to-evidence public 4.0.0 task graph.'
-    dependsOn 'clean', ':direct-schema:createKlumDslSourceMirrors', ':direct-schema:javadoc',
-            ':direct-schema:check', 'verifyResolvedConsumerEvidence'
+    dependsOn 'clean', 'createKlumDslSourceMirrors', 'javadoc', 'check', 'verifyResolvedConsumerEvidence'
 }
 
 gradle.projectsEvaluated {
-    directSchema.tasks.named('createKlumDslSourceMirrors') {
-        mustRunAfter rootProject.tasks.named('clean')
+    tasks.named('createKlumDslSourceMirrors') {
+        mustRunAfter tasks.named('clean')
     }
-    directSchema.tasks.named('javadoc') {
-        mustRunAfter directSchema.tasks.named('createKlumDslSourceMirrors')
+    tasks.named('javadoc') {
+        mustRunAfter tasks.named('createKlumDslSourceMirrors')
     }
-    directSchema.tasks.named('check') {
-        mustRunAfter directSchema.tasks.named('javadoc')
+    tasks.named('check') {
+        mustRunAfter tasks.named('javadoc')
     }
     tasks.named('verifyResolvedConsumerEvidence') {
-        mustRunAfter directSchema.tasks.named('check')
+        mustRunAfter tasks.named('check')
     }
 }

@@ -1,5 +1,5 @@
 pluginManagement {
-    def coordinates = new groovy.json.JsonSlurper().parse(file('coordinates.json'))
+    def coordinates = new groovy.json.JsonSlurper().parse(file('../../coordinates.json'))
     repositories {
         gradlePluginPortal()
         mavenCentral()
@@ -16,5 +16,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = 'klum-catwalk'
-include ':direct-schema'
+rootProject.name = 'direct-schema'
