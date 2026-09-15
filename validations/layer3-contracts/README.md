@@ -14,7 +14,7 @@ Run the empty project boundary check from this directory:
 ## Boundaries
 
 - This project does not include or build the direct Schema validation or the
-  showcases project.
+  future projects grouped under `showcases/`.
 - Adding Layer 3 behavior, copying paused worktree content, or changing KlumAST
   or AnnoDocimal is outside this skeleton's scope.
 

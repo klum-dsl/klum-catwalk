@@ -1,21 +1,17 @@
 # Showcases
 
-This independent Gradle project is reserved for future journey-oriented,
-runnable KlumAST material. It currently contains only project-local Gradle
-lifecycle wiring and no showcase content.
-
-Run the empty project boundary check from this directory:
-
-```shell
-./gradlew check
-```
+`showcases/` is a non-Gradle grouping directory reserved for future
+journey-oriented, runnable KlumAST material. Each named child showcase will be
+an independent Gradle project with its own settings, build, wrapper, sources,
+and README. No showcase has been selected or created yet.
 
 ## Boundaries
 
 - Showcases are runnable journeys, not feature-oriented validation proofs.
-- This project does not include or build either project under `validations/`.
-- Adding showcase content, Layer 3 contracts, source-level composition, CI, or
-  product changes is outside this skeleton's scope.
+- This directory has no build and does not aggregate its future children or
+  either project under `validations/`.
+- A future showcase must be named and scoped before its standalone project is
+  added; this grouping directory is not a placeholder build.
 
 ## Governing records
 
