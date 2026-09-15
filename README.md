@@ -13,10 +13,6 @@ Gradle build and intentionally has no root build files or Gradle wrapper.
 - [`showcases`](showcases/README.md) — the independent home for future
   journey-oriented runnable material.
 
-Repository-level coordinate and historical baseline metadata remain in
-[`coordinates.json`](coordinates.json) and [`baselines`](baselines/). Retained
-validation evidence remains in [`validation`](validation/).
-
 Each Gradle project is invoked through its own wrapper. Projects do not include,
 compose, or build one another, and there is no root aggregate build. CI and
 repository agent setup remain tracked by [issue #1](https://github.com/klum-dsl/klum-catwalk/issues/1)

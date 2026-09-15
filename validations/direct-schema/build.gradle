@@ -1,19 +1,26 @@
 import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
 
 plugins {
-    id 'base'
-    id 'com.blackbuild.klum-ast-schema'
+    id 'com.blackbuild.klum-ast-schema' version "${klumAstVersion}"
 }
 
 klumSchema {
     groovyVersion = '3'
 }
 
-def coordinates = new JsonSlurper().parse(file('../../coordinates.json'))
-def expectedModules = coordinates.klumAst.publishedModules as List<String>
-def expectedMarker = coordinates.klumAst.pluginMarker as String
-def excludedModules = coordinates.klumAst.excludedHistoricalModules as List<String>
+def selectedKlumAstVersion = providers.gradleProperty('klumAstVersion').get()
+def pluginId = 'com.blackbuild.klum-ast-schema'
+def expectedMarker = "${pluginId}:${pluginId}.gradle.plugin:${selectedKlumAstVersion}".toString()
+def expectedModules = [
+        'klum-ast-bom',
+        'klum-ast-annotations',
+        'klum-ast',
+        'klum-ast-runtime',
+        'klum-ast-jackson',
+        'klum-ast-bean-validation',
+        'klum-ast-gradle-plugin'
+].collect { "com.blackbuild.klum.ast:${it}:${selectedKlumAstVersion}".toString() }
+def excludedModules = ["com.blackbuild.klum.ast:klum-ast-test-support:${selectedKlumAstVersion}".toString()]
 
 configurations {
     releasedKlumAstProduct {
@@ -27,8 +34,8 @@ configurations {
 }
 
 dependencies {
-    releasedKlumAstProduct platform("com.blackbuild.klum.ast:klum-ast-bom:${coordinates.klumAst.version}")
-    releasedKlumAstProduct "com.blackbuild.klum.ast:klum-ast-bom:${coordinates.klumAst.version}"
+    releasedKlumAstProduct platform("com.blackbuild.klum.ast:klum-ast-bom:${selectedKlumAstVersion}")
+    releasedKlumAstProduct "com.blackbuild.klum.ast:klum-ast-bom:${selectedKlumAstVersion}"
     expectedModules.findAll { !it.contains(':klum-ast-bom:') }.each { releasedKlumAstProduct it }
     schemaPluginMarker expectedMarker
 }
@@ -81,19 +88,20 @@ tasks.register('verifyResolvedConsumerEvidence') {
         }.findAll { it.startsWith('com.blackbuild.') }.sort()
 
         expectedModules.each { expected ->
-            if (!product.contains(expected)) throw new GradleException("Missing released 4.0.0 product module: ${expected}")
+            if (!product.contains(expected)) throw new GradleException("Missing expected KlumAST product module: ${expected}")
         }
         if (!marker.contains(expectedMarker)) throw new GradleException("Schema plugin marker did not resolve normally: ${expectedMarker}")
         excludedModules.each { forbidden ->
             if (product.contains(forbidden) || resolvedSchema.contains(forbidden))
-                throw new GradleException("Historical 4.0.0 baseline must not require ${forbidden}")
+                throw new GradleException("Direct consumer must not require ${forbidden}")
         }
-        if (!consumerProject.pluginManager.hasPlugin(coordinates.klumAst.pluginId))
-            throw new GradleException("Schema plugin was not applied through its public marker: ${coordinates.klumAst.pluginId}")
+        if (!consumerProject.pluginManager.hasPlugin(pluginId))
+            throw new GradleException("Schema plugin was not applied through its public marker: ${pluginId}")
 
         def evidence = [
-                mode                  : coordinates.mode,
-                fixture               : coordinates.fixture,
+                mode                  : 'public-release',
+                fixture               : rootProject.name,
+                klumAstVersion        : selectedKlumAstVersion,
                 gradle                : gradle.gradleVersion,
                 java                  : System.getProperty('java.version'),
                 pluginMarker          : marker.sort(),
@@ -103,7 +111,7 @@ tasks.register('verifyResolvedConsumerEvidence') {
                 annodocimal           : resolvedSchema.findAll { it.startsWith('com.blackbuild.annodocimal:') },
                 mirrorDirectory       : mirror.toString(),
                 mirrorInputLeaks      : checks,
-                repositories          : coordinates.repositories,
+                repositories          : [dependencies: ['mavenCentral'], plugins: ['gradlePluginPortal', 'mavenCentral']],
                 excludedHistoricalModules: excludedModules
         ]
         def output = layout.buildDirectory.file('verification/resolved-consumer-evidence.json').get().asFile
@@ -114,7 +122,7 @@ tasks.register('verifyResolvedConsumerEvidence') {
 
 tasks.register('verifyDirectPublicBaseline') {
     group = 'verification'
-    description = 'Runs SC-1’s exact clean-to-evidence public 4.0.0 task graph.'
+    description = 'Runs SC-1’s clean-to-evidence task graph for the selected public KlumAST version.'
     dependsOn 'clean', 'createKlumDslSourceMirrors', 'javadoc', 'check', 'verifyResolvedConsumerEvidence'
 }
 

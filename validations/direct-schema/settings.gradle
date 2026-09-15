@@ -1,11 +1,7 @@
 pluginManagement {
-    def coordinates = new groovy.json.JsonSlurper().parse(file('../../coordinates.json'))
     repositories {
         gradlePluginPortal()
         mavenCentral()
-    }
-    plugins {
-        id coordinates.klumAst.pluginId version coordinates.klumAst.version
     }
 }
 
