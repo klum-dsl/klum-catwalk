@@ -1,14 +1,27 @@
 import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
 
 plugins {
-    id 'base'
+    id 'com.blackbuild.klum-ast-schema' version "${klumAstVersion}"
 }
 
-def coordinates = new JsonSlurper().parse(file('coordinates.json'))
-def expectedModules = coordinates.klumAst.publishedModules as List<String>
-def expectedMarker = coordinates.klumAst.pluginMarker as String
-def excludedModules = coordinates.klumAst.excludedHistoricalModules as List<String>
+klumSchema {
+    groovyVersion = '3'
+}
+
+def selectedKlumAstVersion = providers.gradleProperty('klumAstVersion').get()
+def retainedBaselineVersion = '4.0.0'
+def pluginId = 'com.blackbuild.klum-ast-schema'
+def expectedMarker = "${pluginId}:${pluginId}.gradle.plugin:${retainedBaselineVersion}".toString()
+def expectedModules = [
+        'klum-ast-bom',
+        'klum-ast-annotations',
+        'klum-ast',
+        'klum-ast-runtime',
+        'klum-ast-jackson',
+        'klum-ast-bean-validation',
+        'klum-ast-gradle-plugin'
+].collect { "com.blackbuild.klum.ast:${it}:${retainedBaselineVersion}".toString() }
+def excludedModules = ["com.blackbuild.klum.ast:klum-ast-test-support:${retainedBaselineVersion}".toString()]
 
 configurations {
     releasedKlumAstProduct {
@@ -22,14 +35,14 @@ configurations {
 }
 
 dependencies {
-    releasedKlumAstProduct platform("com.blackbuild.klum.ast:klum-ast-bom:${coordinates.klumAst.version}")
-    releasedKlumAstProduct "com.blackbuild.klum.ast:klum-ast-bom:${coordinates.klumAst.version}"
+    releasedKlumAstProduct platform("com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}")
+    releasedKlumAstProduct "com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}"
     expectedModules.findAll { !it.contains(':klum-ast-bom:') }.each { releasedKlumAstProduct it }
     schemaPluginMarker expectedMarker
 }
 
-def directSchema = project(':direct-schema')
-def mirrorDirectory = directSchema.layout.buildDirectory.dir('generated/sources/klum-dsl-ide/main')
+def consumerProject = project
+def mirrorDirectory = layout.buildDirectory.dir('generated/sources/klum-dsl-ide/main')
 def containsPath = { files, File directory ->
     def root = directory.canonicalFile
     files.files.any { file ->
@@ -40,17 +53,17 @@ def containsPath = { files, File directory ->
 
 tasks.register('verifyResolvedConsumerEvidence') {
     group = 'verification'
-    description = 'Records public-coordinate resolution and rejects generated-mirror input leaks.'
-    dependsOn ':direct-schema:check'
+    description = 'Records retained public 4.0.0 resolution and rejects generated-mirror input leaks.'
+    dependsOn 'check'
     outputs.file(layout.buildDirectory.file('verification/resolved-consumer-evidence.json'))
 
     doLast {
         def mirror = mirrorDirectory.get().asFile
-        def sourceSets = directSchema.extensions.getByType(org.gradle.api.plugins.JavaPluginExtension).sourceSets
+        def sourceSets = consumerProject.extensions.getByType(org.gradle.api.plugins.JavaPluginExtension).sourceSets
         def main = sourceSets.main
-        def compileGroovy = directSchema.tasks.named('compileGroovy').get()
-        def javadoc = directSchema.tasks.named('javadoc').get()
-        def jar = directSchema.tasks.named('jar').get()
+        def compileGroovy = consumerProject.tasks.named('compileGroovy').get()
+        def javadoc = consumerProject.tasks.named('javadoc').get()
+        def jar = consumerProject.tasks.named('jar').get()
         def checks = [
                 'main.java.source'          : containsPath(main.java.sourceDirectories, mirror),
                 'main.groovy.source'        : containsPath(main.groovy.sourceDirectories, mirror),
@@ -76,19 +89,20 @@ tasks.register('verifyResolvedConsumerEvidence') {
         }.findAll { it.startsWith('com.blackbuild.') }.sort()
 
         expectedModules.each { expected ->
-            if (!product.contains(expected)) throw new GradleException("Missing released 4.0.0 product module: ${expected}")
+            if (!product.contains(expected)) throw new GradleException("Missing expected KlumAST product module: ${expected}")
         }
         if (!marker.contains(expectedMarker)) throw new GradleException("Schema plugin marker did not resolve normally: ${expectedMarker}")
         excludedModules.each { forbidden ->
             if (product.contains(forbidden) || resolvedSchema.contains(forbidden))
-                throw new GradleException("Historical 4.0.0 baseline must not require ${forbidden}")
+                throw new GradleException("Direct consumer must not require ${forbidden}")
         }
-        if (!directSchema.pluginManager.hasPlugin(coordinates.klumAst.pluginId))
-            throw new GradleException("Schema plugin was not applied through its public marker: ${coordinates.klumAst.pluginId}")
+        if (!consumerProject.pluginManager.hasPlugin(pluginId))
+            throw new GradleException("Schema plugin was not applied through its public marker: ${pluginId}")
 
         def evidence = [
-                mode                  : coordinates.mode,
-                fixture               : coordinates.fixture,
+                mode                  : 'public-release',
+                fixture               : rootProject.name,
+                klumAstVersion        : retainedBaselineVersion,
                 gradle                : gradle.gradleVersion,
                 java                  : System.getProperty('java.version'),
                 pluginMarker          : marker.sort(),
@@ -98,7 +112,7 @@ tasks.register('verifyResolvedConsumerEvidence') {
                 annodocimal           : resolvedSchema.findAll { it.startsWith('com.blackbuild.annodocimal:') },
                 mirrorDirectory       : mirror.toString(),
                 mirrorInputLeaks      : checks,
-                repositories          : coordinates.repositories,
+                repositories          : [dependencies: ['mavenCentral'], plugins: ['gradlePluginPortal', 'mavenCentral']],
                 excludedHistoricalModules: excludedModules
         ]
         def output = layout.buildDirectory.file('verification/resolved-consumer-evidence.json').get().asFile
@@ -109,22 +123,33 @@ tasks.register('verifyResolvedConsumerEvidence') {
 
 tasks.register('verifyDirectPublicBaseline') {
     group = 'verification'
-    description = 'Runs SC-1’s exact clean-to-evidence public 4.0.0 task graph.'
-    dependsOn 'clean', ':direct-schema:createKlumDslSourceMirrors', ':direct-schema:javadoc',
-            ':direct-schema:check', 'verifyResolvedConsumerEvidence'
+    description = 'Runs SC-1’s retained clean-to-evidence public 4.0.0 task graph.'
+    dependsOn 'clean', 'createKlumDslSourceMirrors', 'javadoc', 'check', 'verifyResolvedConsumerEvidence'
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    def baselineTaskRequested = ['verifyResolvedConsumerEvidence', 'verifyDirectPublicBaseline'].any {
+        taskGraph.hasTask(tasks.named(it).get())
+    }
+    if (baselineTaskRequested && selectedKlumAstVersion != retainedBaselineVersion) {
+        throw new GradleException(
+                "SC-1 evidence is retained for KlumAST ${retainedBaselineVersion}; " +
+                        "use test/check for ${selectedKlumAstVersion} smoke coverage until SC-1a/SC-2 provides a product manifest."
+        )
+    }
 }
 
 gradle.projectsEvaluated {
-    directSchema.tasks.named('createKlumDslSourceMirrors') {
-        mustRunAfter rootProject.tasks.named('clean')
+    tasks.named('createKlumDslSourceMirrors') {
+        mustRunAfter tasks.named('clean')
     }
-    directSchema.tasks.named('javadoc') {
-        mustRunAfter directSchema.tasks.named('createKlumDslSourceMirrors')
+    tasks.named('javadoc') {
+        mustRunAfter tasks.named('createKlumDslSourceMirrors')
     }
-    directSchema.tasks.named('check') {
-        mustRunAfter directSchema.tasks.named('javadoc')
+    tasks.named('check') {
+        mustRunAfter tasks.named('javadoc')
     }
     tasks.named('verifyResolvedConsumerEvidence') {
-        mustRunAfter directSchema.tasks.named('check')
+        mustRunAfter tasks.named('check')
     }
 }
