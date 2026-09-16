@@ -4,7 +4,7 @@ import spock.lang.Specification
 
 class GroovySpockAlignmentSpec extends Specification {
 
-    def 'uses the centrally selected Groovy and Spock pair'() {
+    def 'uses the root-selected Groovy and Spock pair'() {
         given:
         String expectedSpock = System.getProperty('catwalk.expectedSpockVersion')
 

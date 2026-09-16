@@ -9,16 +9,23 @@ plugins {
 }
 
 ext {
-    selectedGroovyLine = providers.gradleProperty('groovyLine').get()
-    selectedGroovyVersion = providers.gradleProperty('groovyVersion').get()
-    selectedSpockVersion = providers.gradleProperty('spockVersion').get()
+    // This is the sole Groovy/Spock selection for this Layer 3 project. Every
+    // participating module consumes this value; no module declares a pair of
+    // its own.
+    layer3TestPair = [
+            groovyLine      : providers.gradleProperty('groovyLine').get(),
+            groovyVersion   : providers.gradleProperty('groovyVersion').get(),
+            spockVersion    : providers.gradleProperty('spockVersion').get(),
+            groovyCoordinate: "org.codehaus.groovy:groovy:${providers.gradleProperty('groovyVersion').get()}",
+            spockCoordinate : "org.spockframework:spock-core:${providers.gradleProperty('spockVersion').get()}"
+    ].asImmutable()
 }
 
 def effectiveSelection = [
         klumAstVersion: providers.gradleProperty('klumAstVersion').get(),
-        groovyLine    : selectedGroovyLine,
-        groovyVersion : selectedGroovyVersion,
-        spockVersion  : selectedSpockVersion
+        groovyLine    : layer3TestPair.groovyLine,
+        groovyVersion : layer3TestPair.groovyVersion,
+        spockVersion  : layer3TestPair.spockVersion
 ]
 
 def selectedCoordinate = { Project selectedProject, String configurationName, String group, String module ->
@@ -37,6 +44,22 @@ def selectedCoordinate = { Project selectedProject, String configurationName, St
         )
     }
     matches[0]
+}
+
+def resolvedPair = { Project selectedProject, String configurationName ->
+    [
+            groovy: selectedCoordinate(selectedProject, configurationName, 'org.codehaus.groovy', 'groovy'),
+            spock : selectedCoordinate(selectedProject, configurationName, 'org.spockframework', 'spock-core')
+    ]
+}
+
+def requireSelectedPair = { String participant, Map resolved ->
+    def selected = [groovy: layer3TestPair.groovyCoordinate, spock: layer3TestPair.spockCoordinate]
+    if (resolved != selected) {
+        throw new GradleException(
+                "Layer 3 Groovy/Spock pair mismatch for ${participant}; selected ${selected}, resolved ${resolved}"
+        )
+    }
 }
 
 def requireSuccessfulTestCase = { File report, String className, String testName ->
@@ -159,33 +182,144 @@ tasks.register('verifyFixtureWiring') {
     }
 }
 
+tasks.register('verifyLayer3TestPairAlignment') {
+    group = 'verification'
+    description = 'Verifies that API fixtures and Schema tests resolve the root-selected Groovy/Spock pair.'
+    inputs.files(fileTree(rootDir) {
+        include 'build.gradle', 'gradle.properties', 'domain-api/build.gradle', 'schema/build.gradle'
+    })
+    outputs.file(layout.buildDirectory.file('verification/test-pair-alignment.json'))
+    outputs.upToDateWhen { false }
+
+    doLast {
+        def domainApi = project(':domain-api')
+        def schema = project(':schema')
+        def resolvedPairs = [
+                domainApiFixtureCompile: resolvedPair(domainApi, 'testFixturesCompileClasspath'),
+                domainApiFixtureRuntime: resolvedPair(domainApi, 'testFixturesRuntimeClasspath'),
+                schemaTestCompile      : resolvedPair(schema, 'testCompileClasspath'),
+                schemaTestRuntime      : resolvedPair(schema, 'testRuntimeClasspath')
+        ]
+        resolvedPairs.each { participant, resolved -> requireSelectedPair(participant, resolved) }
+
+        def output = layout.buildDirectory.file('verification/test-pair-alignment.json').get().asFile
+        output.parentFile.mkdirs()
+        output.text = JsonOutput.prettyPrint(JsonOutput.toJson([
+                selectedPair : [groovy: layer3TestPair.groovyCoordinate, spock: layer3TestPair.spockCoordinate],
+                resolvedPairs: resolvedPairs
+        ])) + System.lineSeparator()
+    }
+}
+
+tasks.register('verifyGroovySpockMismatchDiagnostics') {
+    group = 'verification'
+    description = 'Exercises the pair-alignment diagnostic with a disposable Schema dependency drift.'
+    inputs.files(fileTree(rootDir) {
+        include 'settings.gradle', 'build.gradle', 'gradle.properties', 'gradlew', 'gradlew.bat'
+        include 'gradle/wrapper/**', 'domain-api/**', 'schema/**'
+        exclude '**/build/**'
+    })
+    inputs.properties(effectiveSelection)
+    outputs.file(layout.buildDirectory.file('verification/test-pair-mismatch.json'))
+    outputs.upToDateWhen { false }
+
+    doLast {
+        def outputDirectory = layout.buildDirectory.dir('verification/test-pair-mismatch').get().asFile
+        def mismatchRoot = new File(outputDirectory, 'schema-groovy-spock-drift')
+        delete mismatchRoot
+        copy {
+            from rootDir
+            into mismatchRoot
+            include 'settings.gradle', 'build.gradle', 'gradle.properties'
+            include 'domain-api/**', 'schema/**'
+            exclude '**/build/**'
+        }
+
+        def compatibleMismatchPairs = [
+                [groovyVersion: '3.0.24', spockVersion: '2.3-groovy-3.0'],
+                [groovyVersion: '3.0.25', spockVersion: '2.4-groovy-3.0']
+        ]
+        def mismatchPair = compatibleMismatchPairs.find { candidate ->
+            candidate.groovyVersion != layer3TestPair.groovyVersion ||
+                    candidate.spockVersion != layer3TestPair.spockVersion
+        }
+        if (mismatchPair == null) {
+            throw new GradleException("No compatible mismatch pair is distinct from ${layer3TestPair}")
+        }
+        def mismatchGroovy = "org.codehaus.groovy:groovy:${mismatchPair.groovyVersion}"
+        def mismatchSpock = "org.spockframework:spock-core:${mismatchPair.spockVersion}"
+        def schemaBuild = new File(mismatchRoot, 'schema/build.gradle')
+        schemaBuild << """
+
+dependencies {
+    // Deliberately isolated from the real build: CT-3 must report this drift.
+    testImplementation '${mismatchGroovy}'
+    testImplementation '${mismatchSpock}'
+}
+
+configurations.matching { it.name in ['testCompileClasspath', 'testRuntimeClasspath'] }.configureEach {
+    resolutionStrategy.force(
+            '${mismatchGroovy}',
+            '${mismatchSpock}'
+    )
+}
+"""
+
+        def output = new ByteArrayOutputStream()
+        def windows = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')
+        def wrapperCommand = windows
+                ? ['cmd', '/c', rootProject.file('gradlew.bat')]
+                : [rootProject.file('gradlew')]
+        def propertyArguments = effectiveSelection.collect { name, value -> "-P${name}=${value}".toString() }
+        def result = exec {
+            workingDir rootDir
+            commandLine(wrapperCommand + ['-p', mismatchRoot] + propertyArguments + [
+                    'verifyLayer3TestPairAlignment', '--no-daemon', '--console=plain', '--warning-mode=none'
+            ])
+            standardOutput output
+            errorOutput output
+            ignoreExitValue = true
+        }
+        def logFile = new File(outputDirectory, 'schema-groovy-spock-drift.log')
+        logFile.parentFile.mkdirs()
+        logFile.text = output.toString('UTF-8')
+        def expectedDiagnostic = 'Layer 3 Groovy/Spock pair mismatch for schemaTestCompile'
+        if (result.exitValue == 0 || !logFile.text.contains(expectedDiagnostic)) {
+            throw new GradleException("Schema pair drift did not produce the expected CT-3 diagnostic; see ${logFile}")
+        }
+
+        def evidence = [
+                selectedPair: [groovy: layer3TestPair.groovyCoordinate, spock: layer3TestPair.spockCoordinate],
+                injectedSchemaDependencies: [
+                        mismatchGroovy,
+                        mismatchSpock
+                ],
+                task      : 'verifyLayer3TestPairAlignment',
+                outcome   : 'expected-failure',
+                diagnostic: expectedDiagnostic
+        ]
+        def evidenceFile = layout.buildDirectory.file('verification/test-pair-mismatch.json').get().asFile
+        evidenceFile.parentFile.mkdirs()
+        evidenceFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(evidence)) + System.lineSeparator()
+    }
+}
+
 tasks.register('verifyLayer3ContractEvidence') {
     group = 'verification'
-    description = 'Verifies API-only fixture packaging, inherited execution, and Groovy/Spock alignment.'
-    dependsOn ':domain-api:jar', ':domain-api:testFixturesJar', ':schema:test', 'verifyFixtureWiring'
+    description = 'Verifies API-only fixture packaging, inherited execution, and selected test-pair evidence.'
+    dependsOn ':domain-api:jar', ':domain-api:testFixturesJar', ':schema:test', 'verifyFixtureWiring',
+            'verifyLayer3TestPairAlignment', 'verifyGroovySpockMismatchDiagnostics'
     outputs.file(layout.buildDirectory.file('verification/layer3-contract-evidence.json'))
     outputs.upToDateWhen { false }
 
     doLast {
         def domainApi = project(':domain-api')
         def schema = project(':schema')
-        def expectedGroovy = "org.codehaus.groovy:groovy:${selectedGroovyVersion}".toString()
-        def expectedSpock = "org.spockframework:spock-core:${selectedSpockVersion}".toString()
-        def resolvedPairs = [
-                'domain-api': [
-                        groovy: selectedCoordinate(domainApi, 'testFixturesCompileClasspath', 'org.codehaus.groovy', 'groovy'),
-                        spock : selectedCoordinate(domainApi, 'testFixturesCompileClasspath', 'org.spockframework', 'spock-core')
-                ],
-                schema      : [
-                        groovy: selectedCoordinate(schema, 'testCompileClasspath', 'org.codehaus.groovy', 'groovy'),
-                        spock : selectedCoordinate(schema, 'testCompileClasspath', 'org.spockframework', 'spock-core')
-                ]
-        ]
-        resolvedPairs.each { module, pair ->
-            if (pair.groovy != expectedGroovy || pair.spock != expectedSpock) {
-                throw new GradleException("${module} resolved an unaligned Groovy/Spock pair: ${pair}")
-            }
+        def pairAlignmentFile = layout.buildDirectory.file('verification/test-pair-alignment.json').get().asFile
+        if (!pairAlignmentFile.isFile()) {
+            throw new GradleException("Missing test-pair alignment evidence: ${pairAlignmentFile}")
         }
+        def pairAlignment = new JsonSlurper().parse(pairAlignmentFile)
 
         def productionTestDependencies = ['apiElements', 'runtimeElements'].collectMany { configurationName ->
             domainApi.configurations.named(configurationName).get().allDependencies.collect { dependency ->
@@ -239,7 +373,7 @@ tasks.register('verifyLayer3ContractEvidence') {
         def alignmentFeature = requireSuccessfulTestCase(
                 pairReport,
                 'org.klum.catwalk.schema.GroovySpockAlignmentSpec',
-                'uses the centrally selected Groovy and Spock pair'
+                'uses the root-selected Groovy and Spock pair'
         )
 
         def fixtureWiringFile = layout.buildDirectory.file(
@@ -249,12 +383,16 @@ tasks.register('verifyLayer3ContractEvidence') {
             throw new GradleException("Missing fixture-wiring evidence: ${fixtureWiringFile}")
         }
         def fixtureWiring = new JsonSlurper().parse(fixtureWiringFile)
+        def pairMismatchFile = layout.buildDirectory.file('verification/test-pair-mismatch.json').get().asFile
+        if (!pairMismatchFile.isFile()) {
+            throw new GradleException("Missing test-pair mismatch evidence: ${pairMismatchFile}")
+        }
 
         def evidence = [
                 fixture             : rootProject.name,
                 klumAstVersion       : providers.gradleProperty('klumAstVersion').get(),
-                selectedPair         : [groovy: expectedGroovy, spock: expectedSpock],
-                resolvedPairs        : resolvedPairs,
+                selectedPair         : pairAlignment.selectedPair,
+                resolvedPairs        : pairAlignment.resolvedPairs,
                 fixtureContract      : contractClass,
                 absentFromMainJar    : true,
                 presentInFixturesJar : true,
@@ -263,6 +401,7 @@ tasks.register('verifyLayer3ContractEvidence') {
                 inheritedTest        : inheritedFeature,
                 alignmentTest        : alignmentFeature,
                 fixtureWiring        : fixtureWiring,
+                pairMismatchDiagnostic: new JsonSlurper().parse(pairMismatchFile),
                 optionalModelIncluded: false
         ]
         def output = layout.buildDirectory.file('verification/layer3-contract-evidence.json').get().asFile

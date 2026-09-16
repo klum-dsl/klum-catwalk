@@ -7,6 +7,6 @@ plugins {
 dependencies {
     // The compiled fixture exposes GroovyObject and extends Specification, so
     // both types are part of the test-fixture API, never the production API.
-    testFixturesApi "org.codehaus.groovy:groovy:${rootProject.selectedGroovyVersion}"
-    testFixturesApi "org.spockframework:spock-core:${rootProject.selectedSpockVersion}"
+    testFixturesApi rootProject.layer3TestPair.groovyCoordinate
+    testFixturesApi rootProject.layer3TestPair.spockCoordinate
 }
