@@ -20,5 +20,8 @@ The [CI workflow](.github/workflows/ci.yml) runs the documented project-local
 commands: `verifyDirectPublicBaseline` in `validations/direct-schema` and
 `clean check` in `validations/layer3-contracts`. It resolves only public
 coordinates and does not perform candidate, release, publish, or deploy work.
+When a runnable showcase is added, its documented validation command must be
+added to CI explicitly and run from that project's directory with its own
+wrapper; `showcases/` remains a non-Gradle grouping directory.
 Repository agent setup remains tracked by
 [issue #2](https://github.com/klum-dsl/klum-catwalk/issues/2).
