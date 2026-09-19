@@ -1,9 +1,10 @@
 # Showcases
 
 `showcases/` is a non-Gradle grouping directory reserved for future
-journey-oriented, runnable KlumAST material. Each named child showcase will be
-an independent Gradle project with its own settings, build, wrapper, sources,
-and README. No showcase has been selected or created yet.
+journey-oriented, runnable KlumAST material. Each future project lives directly
+at `showcases/<immutable-kebab-case-journey-slug>/` as an independent Gradle
+root with its own settings, build, wrapper, sources, and README. No showcase has
+been selected or created yet.
 
 ## Boundaries
 
@@ -12,6 +13,8 @@ and README. No showcase has been selected or created yet.
   either project under `validations/`.
 - A future showcase must be named and scoped before its standalone project is
   added; this grouping directory is not a placeholder build.
+- Each added showcase receives an explicit reviewed CI job that runs its own
+  documented normal check and evidence commands from the project directory.
 
 ## Governing records
 
