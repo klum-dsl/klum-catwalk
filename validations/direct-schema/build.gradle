@@ -9,11 +9,12 @@ klumSchema {
 }
 
 def selectedKlumAstVersion = providers.gradleProperty('klumAstVersion').get()
-def retainedBaselineVersion = '4.0.0'
+def retainedBaselineVersion = '4.0.1'
+def retainedAnnoDocimalVersion = '1.0.1'
 def pluginId = 'com.blackbuild.klum-ast-schema'
 def expectedMarker = "${pluginId}:${pluginId}.gradle.plugin:${retainedBaselineVersion}".toString()
+def expectedBom = "com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}".toString()
 def expectedModules = [
-        'klum-ast-bom',
         'klum-ast-annotations',
         'klum-ast',
         'klum-ast-runtime',
@@ -22,6 +23,15 @@ def expectedModules = [
         'klum-ast-gradle-plugin'
 ].collect { "com.blackbuild.klum.ast:${it}:${retainedBaselineVersion}".toString() }
 def excludedModules = ["com.blackbuild.klum.ast:klum-ast-test-support:${retainedBaselineVersion}".toString()]
+def expectedAnnoDocimalProductModules = [
+        'anno-docimal-annotations',
+        'anno-docimal-ast',
+        'anno-docimal-global-ast',
+        'anno-docimal-gradle-plugin'
+].collect { "com.blackbuild.annodocimal:${it}:${retainedAnnoDocimalVersion}".toString() }
+def expectedAnnoDocimalSchemaModules = expectedAnnoDocimalProductModules.findAll {
+    !it.contains(':anno-docimal-gradle-plugin:')
+}
 
 configurations {
     releasedKlumAstProduct {
@@ -35,9 +45,9 @@ configurations {
 }
 
 dependencies {
-    releasedKlumAstProduct platform("com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}")
-    releasedKlumAstProduct "com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}"
-    expectedModules.findAll { !it.contains(':klum-ast-bom:') }.each { releasedKlumAstProduct it }
+    releasedKlumAstProduct platform(expectedBom)
+    releasedKlumAstProduct expectedBom
+    expectedModules.each { releasedKlumAstProduct it }
     schemaPluginMarker expectedMarker
 }
 
@@ -53,7 +63,7 @@ def containsPath = { files, File directory ->
 
 tasks.register('verifyResolvedConsumerEvidence') {
     group = 'verification'
-    description = 'Records retained public 4.0.0 resolution and rejects generated-mirror input leaks.'
+    description = 'Records retained public 4.0.1 resolution and rejects generated-mirror input leaks.'
     dependsOn 'check'
     outputs.file(layout.buildDirectory.file('verification/resolved-consumer-evidence.json'))
 
@@ -78,26 +88,54 @@ tasks.register('verifyResolvedConsumerEvidence') {
             if (leaked) throw new GradleException("IDE source mirror leaked into ${input}: ${mirror}")
         }
 
-        // A Maven BOM has no ordinary artifact variant, so retain the successfully
-        // resolved requested selectors instead of artifact-only evidence.
-        def product = configurations.releasedKlumAstProduct.incoming.resolutionResult.allDependencies
+        def resolvedCoordinates = { configuration ->
+            def components = configuration.incoming.resolutionResult.allComponents.collect { component ->
+                component.moduleVersion ? "${component.moduleVersion.group}:${component.moduleVersion.name}:${component.moduleVersion.version}".toString() : component.id.displayName
+            }
+            def dependencies = configuration.incoming.resolutionResult.allDependencies.findAll {
+                it instanceof org.gradle.api.artifacts.result.ResolvedDependencyResult
+            }.collect { dependency ->
+                def selected = dependency.selected.moduleVersion
+                selected ? "${selected.group}:${selected.name}:${selected.version}".toString() : dependency.selected.id.displayName
+            }
+            (components + dependencies).findAll { it.startsWith('com.blackbuild.') }.toSet()
+        }
+        def product = resolvedCoordinates(configurations.releasedKlumAstProduct)
+        def marker = resolvedCoordinates(configurations.schemaPluginMarker)
+        def requestedProduct = configurations.releasedKlumAstProduct.incoming.resolutionResult.allDependencies
                 .collect { it.requested.displayName }.toSet()
-        def marker = configurations.schemaPluginMarker.incoming.resolutionResult.allDependencies
-                .collect { it.requested.displayName }.toSet()
+        def unresolvedProduct = configurations.releasedKlumAstProduct.incoming.resolutionResult.allDependencies.findAll {
+            it instanceof org.gradle.api.artifacts.result.UnresolvedDependencyResult
+        }
         def resolvedSchema = main.compileClasspath.incoming.resolutionResult.allComponents.collect { component ->
-            component.moduleVersion ? "${component.moduleVersion.group}:${component.moduleVersion.name}:${component.moduleVersion.version}" : component.id.displayName
-        }.findAll { it.startsWith('com.blackbuild.') }.sort()
+            component.moduleVersion ? "${component.moduleVersion.group}:${component.moduleVersion.name}:${component.moduleVersion.version}".toString() : component.id.displayName
+        }.findAll { it.startsWith('com.blackbuild.') }.toSet()
+        def expectedImplementation = "com.blackbuild.klum.ast:klum-ast-gradle-plugin:${retainedBaselineVersion}".toString()
+        def resolvedAnnoDocimalProduct = product.findAll { it.startsWith('com.blackbuild.annodocimal:') }.toSet()
+        def resolvedAnnoDocimalSchema = resolvedSchema.findAll { it.startsWith('com.blackbuild.annodocimal:') }.toSet()
 
         expectedModules.each { expected ->
             if (!product.contains(expected)) throw new GradleException("Missing expected KlumAST product module: ${expected}")
         }
+        if (!requestedProduct.contains(expectedBom) || !unresolvedProduct.empty)
+            throw new GradleException("KlumAST BOM did not resolve normally: ${expectedBom}")
         if (!marker.contains(expectedMarker)) throw new GradleException("Schema plugin marker did not resolve normally: ${expectedMarker}")
+        if (!marker.contains(expectedImplementation))
+            throw new GradleException("Schema plugin marker did not select its public implementation: ${expectedImplementation}")
+        expectedAnnoDocimalProductModules.each { expected ->
+            if (!resolvedAnnoDocimalProduct.contains(expected))
+                throw new GradleException("Missing expected AnnoDocimal release-line module: ${expected}")
+        }
+        if (resolvedAnnoDocimalSchema != expectedAnnoDocimalSchemaModules.toSet())
+            throw new GradleException("Unexpected AnnoDocimal Schema graph: ${resolvedAnnoDocimalSchema.sort()}")
         excludedModules.each { forbidden ->
             if (product.contains(forbidden) || resolvedSchema.contains(forbidden))
                 throw new GradleException("Direct consumer must not require ${forbidden}")
         }
         if (!consumerProject.pluginManager.hasPlugin(pluginId))
             throw new GradleException("Schema plugin was not applied through its public marker: ${pluginId}")
+        if (consumerProject.pluginManager.hasPlugin('maven-publish'))
+            throw new GradleException('Direct consumer unexpectedly applies the maven-publish plugin')
 
         def evidence = [
                 mode                  : 'public-release',
@@ -105,13 +143,19 @@ tasks.register('verifyResolvedConsumerEvidence') {
                 klumAstVersion        : retainedBaselineVersion,
                 gradle                : gradle.gradleVersion,
                 java                  : System.getProperty('java.version'),
-                pluginMarker          : marker.sort(),
-                pluginImplementation  : product.findAll { it.contains(':klum-ast-gradle-plugin:') }.sort(),
+                pluginMarker          : marker.findAll { it.startsWith("${pluginId}:") }.sort(),
+                pluginImplementation  : (marker + product).findAll { it.contains(':klum-ast-gradle-plugin:') }.toSet().sort(),
+                bom                   : requestedProduct.findAll { it == expectedBom }.sort(),
                 releasedProduct       : product.sort(),
-                schemaResolved        : resolvedSchema,
-                annodocimal           : resolvedSchema.findAll { it.startsWith('com.blackbuild.annodocimal:') },
+                schemaResolved        : resolvedSchema.sort(),
+                annodocimal           : [
+                        expectedVersion: retainedAnnoDocimalVersion,
+                        releasedProduct: resolvedAnnoDocimalProduct.sort(),
+                        schemaResolved : resolvedAnnoDocimalSchema.sort()
+                ],
                 mirrorDirectory       : mirror.toString(),
                 mirrorInputLeaks      : checks,
+                publicationPluginApplied: false,
                 repositories          : [dependencies: ['mavenCentral'], plugins: ['gradlePluginPortal', 'mavenCentral']],
                 excludedHistoricalModules: excludedModules
         ]
@@ -123,7 +167,7 @@ tasks.register('verifyResolvedConsumerEvidence') {
 
 tasks.register('verifyDirectPublicBaseline') {
     group = 'verification'
-    description = 'Runs SC-1’s retained clean-to-evidence public 4.0.0 task graph.'
+    description = 'Runs SC-1’s retained clean-to-evidence public 4.0.1 task graph.'
     dependsOn 'clean', 'createKlumDslSourceMirrors', 'javadoc', 'check', 'verifyResolvedConsumerEvidence'
 }
 
@@ -134,7 +178,7 @@ gradle.taskGraph.whenReady { taskGraph ->
     if (baselineTaskRequested && selectedKlumAstVersion != retainedBaselineVersion) {
         throw new GradleException(
                 "SC-1 evidence is retained for KlumAST ${retainedBaselineVersion}; " +
-                        "use test/check for ${selectedKlumAstVersion} smoke coverage until SC-1a/SC-2 provides a product manifest."
+                        "use test/check for ${selectedKlumAstVersion} smoke coverage until SC-2 provides a product manifest."
         )
     }
 }
