@@ -14,6 +14,15 @@ Gradle build and intentionally has no root build files or Gradle wrapper.
   future independent, named showcase projects.
 
 Each Gradle project is invoked through its own wrapper. Projects do not include,
-compose, or build one another, and there is no root aggregate build. CI and
-repository agent setup remain tracked by [issue #1](https://github.com/klum-dsl/klum-catwalk/issues/1)
-and [issue #2](https://github.com/klum-dsl/klum-catwalk/issues/2), respectively.
+compose, or build one another, and there is no root aggregate build.
+
+The [CI workflow](.github/workflows/ci.yml) runs the documented project-local
+commands in explicit per-project jobs: `verifyDirectPublicBaseline` in
+`validations/direct-schema` and `clean check` in
+`validations/layer3-contracts`. It resolves only public coordinates and does
+not perform candidate, release, publish, or deploy work. Future showcases are
+represented in CI by reviewed jobs for their actual role-specific project
+leaves only when those leaves exist; CI has no placeholder job, directory scan,
+or dormant showcase command.
+Repository agent setup remains tracked by
+[issue #2](https://github.com/klum-dsl/klum-catwalk/issues/2).
