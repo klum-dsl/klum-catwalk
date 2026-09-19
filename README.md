@@ -21,7 +21,8 @@ commands in explicit per-project jobs: `verifyDirectPublicBaseline` in
 `validations/direct-schema` and `clean check` in
 `validations/layer3-contracts`. It resolves only public coordinates and does
 not perform candidate, release, publish, or deploy work. Future showcases are
-added as reviewed per-project jobs only when their projects exist; CI has no
-placeholder job, directory scan, or dormant showcase command.
+represented in CI by reviewed jobs for their actual role-specific project
+leaves only when those leaves exist; CI has no placeholder job, directory scan,
+or dormant showcase command.
 Repository agent setup remains tracked by
 [issue #2](https://github.com/klum-dsl/klum-catwalk/issues/2).
