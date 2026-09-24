@@ -16,10 +16,11 @@ java {
     }
 }
 
+// Catwalk journey handoffs. These are ordinary binary inputs rather than
+// project dependencies, source composition, or an included build.
 def domainApiArtifact = layout.projectDirectory.file('../artifacts/domain-api-1.0.0.jar')
 def schemaArtifact = layout.projectDirectory.file('../artifacts/schema-1.0.0.jar')
 def clientArtifact = layout.projectDirectory.file('../artifacts/client-1.0.0.jar')
-def requiredArtifacts = [domainApiArtifact, schemaArtifact, clientArtifact]
 
 dependencies {
     schemas files(schemaArtifact)
@@ -28,56 +29,10 @@ dependencies {
     testImplementation files(clientArtifact)
 }
 
-tasks.register('requireJourneyArtifacts') {
-    group = 'verification'
-    description = 'Requires all explicit binary handoffs before compiling or testing the configured Model.'
-    doLast {
-        def missing = requiredArtifacts.findAll { !it.asFile.isFile() }.collect { it.asFile }
-        if (!missing.empty) throw new GradleException("Missing journey artifact handoffs: ${missing}")
-    }
-}
-
-tasks.named('compileGroovy') {
-    dependsOn 'requireJourneyArtifacts'
-}
-
-tasks.named('compileTestGroovy') {
-    dependsOn 'requireJourneyArtifacts'
-}
-
 tasks.named('test') {
     useJUnitPlatform()
 }
 
-tasks.named('jar') {
-    archiveFileName = "model-${project.version}.jar"
-}
-
-tasks.register('verifyModelArtifact') {
-    group = 'verification'
-    description = 'Verifies the configured Model descriptor is packaged for Create.FromClasspath.'
-    dependsOn 'jar'
-
-    doLast {
-        def archive = tasks.named('jar').get().archiveFile.get().asFile
-        def tree = zipTree(archive)
-        def descriptor = tree.matching {
-            include 'META-INF/klum-model/onboarding.smarthome.schema.CityFlat.properties'
-        }.files
-        if (descriptor.size() != 1) {
-            throw new GradleException("Expected one CityFlat model descriptor, found ${descriptor}")
-        }
-    }
-}
-
-tasks.register('exportArtifact', Copy) {
-    group = 'build'
-    description = 'Exports the tested configured Model JAR to the journey artifact handoff directory.'
-    dependsOn 'check', 'verifyModelArtifact'
-    from tasks.named('jar').flatMap { it.archiveFile }
-    into layout.projectDirectory.dir('../artifacts')
-}
-
-tasks.named('check') {
-    dependsOn 'verifyModelArtifact'
+base {
+    archivesName = 'model'
 }

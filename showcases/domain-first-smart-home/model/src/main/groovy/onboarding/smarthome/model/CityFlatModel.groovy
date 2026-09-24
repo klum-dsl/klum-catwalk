@@ -7,6 +7,8 @@ import onboarding.smarthome.api.HomematicWindowSensor
 import onboarding.smarthome.api.TadoThermostat
 import onboarding.smarthome.schema.CityFlat
 
+// The registered Model records durable configuration only. Live window state
+// stays in the downstream service used by the API-only Client.
 CityFlat.Create.With('city-flat') {
     kitchen {
         thermostat(HomematicThermostat) {
@@ -17,10 +19,12 @@ CityFlat.Create.With('city-flat') {
         smokeDetector(HomematicSmokeDetector) {
             serialNumber 'NEQ7654321'
         }
-        street {
-            windowSensor(HomematicWindowSensor) {
-                serialNumber 'NEQ1111111'
-                channel 2
+        windows {
+            street {
+                windowSensor(HomematicWindowSensor) {
+                    serialNumber 'NEQ1111111'
+                    channel 2
+                }
             }
         }
         devices {
@@ -37,17 +41,21 @@ CityFlat.Create.With('city-flat') {
             channel 1
             targetTemperature 20.0
         }
-        garden { }
+        windows {
+            garden { }
+        }
     }
     mainBedroom {
         thermostat(TadoThermostat) {
             deviceId 'VA1234567890'
             targetTemperature 18.0
         }
-        garden {
-            windowSensor(HomematicWindowSensor) {
-                serialNumber 'NEQ3333333'
-                channel 3
+        windows {
+            garden {
+                windowSensor(HomematicWindowSensor) {
+                    serialNumber 'NEQ3333333'
+                    channel 3
+                }
             }
         }
         devices {

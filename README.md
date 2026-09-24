@@ -22,6 +22,8 @@ commands in explicit per-project jobs for both validations and each actual
 smart-home role leaf. It resolves only public coordinates and does not perform
 candidate, release, publish, or deploy work. Showcase JARs move between jobs as
 explicit workflow artifacts; CI has no root aggregate, directory scan,
-placeholder job, or dormant showcase command.
+placeholder job, or dormant showcase command. The opt-in handoff task comes
+from [`fixtures/`](fixtures/README.md), keeping Catwalk-only plumbing out of the
+copyable showcase builds.
 Repository agent setup remains tracked by
 [issue #2](https://github.com/klum-dsl/klum-catwalk/issues/2).

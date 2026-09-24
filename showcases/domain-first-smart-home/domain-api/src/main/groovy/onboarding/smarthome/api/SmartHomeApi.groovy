@@ -6,6 +6,7 @@ import com.blackbuild.klum.ast.Required
 import com.blackbuild.klum.ast.layer3.AutoCreate
 import com.blackbuild.klum.ast.layer3.Cluster
 
+/** Backend-neutral root contract exposed to Schema and Client developers. */
 @DSL
 abstract class Home {
 
@@ -13,20 +14,27 @@ abstract class Home {
     @AutoCreate @Cluster Map<String, Room> rooms
 }
 
+/**
+ * A room projects all concrete Schema window fields through {@link #windows}.
+ * The bounded Cluster keeps window creation inside a clearly named
+ * {@code windows { ... }} block in Model scripts.
+ */
 @DSL
 abstract class Room {
 
     String displayName
-    @AutoCreate @Cluster Map<String, Window> windows
+    @AutoCreate @Cluster(bounded = true) Map<String, Window> windows
     List<Device> devices
 }
 
+/** A room whose concrete Schema requires a thermostat. */
 @DSL
 abstract class HeatedRoom extends Room {
 
     @Required Thermostat thermostat
 }
 
+/** Generic window contract used by API-only clients. */
 @DSL
 abstract class Window {
 
@@ -34,6 +42,7 @@ abstract class Window {
     WindowSensor windowSensor
 }
 
+/** Base type for configured smart-home devices. */
 @DSL
 abstract class Device { }
 

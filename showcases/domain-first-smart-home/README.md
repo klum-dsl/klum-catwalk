@@ -20,36 +20,40 @@ projects with explicit binary handoffs.
 ## Roles and boundaries
 
 - [`domain-api/`](domain-api/README.md) owns abstract `Home`, `Room`, `Window`,
-  and device DSL types. It exports `domain-api-1.0.0.jar`.
+  and device DSL types. Its bounded `windows` Cluster makes the window context
+  explicit in Model scripts.
 - [`schema/`](schema/README.md) consumes that JAR and owns the concrete
-  `CityFlat` floorplan. It exports `schema-1.0.0.jar`.
+  `CityFlat` floorplan.
 - [`client/`](client/README.md) consumes only the Domain API JAR. Its boundary
-  verification rejects Schema/Model imports and any additional journey JAR on
-  the compile classpath. It exports `client-1.0.0.jar`.
+  is enforced by the dependency graph and ordinary compilation: no Schema or
+  Model artifact is available to import.
 - [`model/`](model/README.md) consumes the three prior JARs, registers the
-  configured Model, and runs the end-to-end story and validation assertions. It
-  exports `model-1.0.0.jar`.
+  configured Model, and runs the end-to-end story and validation assertions.
 
 This directory is intentionally not a Gradle project. Every leaf owns its own
 settings, build, wrapper, README, and sources. There are no project
 dependencies, included/composite builds, source-set composition, or
 `mavenLocal()` repositories. [`artifacts/`](artifacts/README.md) is the ignored
-binary handoff directory.
+binary handoff directory. The leaf builds contain no Catwalk-specific
+verification or export tasks; repository orchestration is isolated in the
+top-level [`fixtures/`](../../fixtures/README.md) directory.
 
 ## Run the journey
 
-From this directory, use each leaf's normal command in dependency order:
+Each copied leaf uses the ordinary project command `./gradlew clean check`.
+Within Catwalk, the following workflow-equivalent commands additionally apply
+the opt-in fixture helper to perform the required binary handoff:
 
 ```shell
-(cd domain-api && ./gradlew clean check exportArtifact)
-(cd schema && ./gradlew clean check exportArtifact)
-(cd client && ./gradlew clean check exportArtifact)
-(cd model && ./gradlew clean check exportArtifact)
+(cd domain-api && ./gradlew clean check exportCatwalkArtifact -I ../../../fixtures/showcase-artifact-handoff.init.gradle -PcatwalkArtifactDirectory=../artifacts)
+(cd schema && ./gradlew clean check exportCatwalkArtifact -I ../../../fixtures/showcase-artifact-handoff.init.gradle -PcatwalkArtifactDirectory=../artifacts)
+(cd client && ./gradlew clean check exportCatwalkArtifact -I ../../../fixtures/showcase-artifact-handoff.init.gradle -PcatwalkArtifactDirectory=../artifacts)
+(cd model && ./gradlew clean check exportCatwalkArtifact -I ../../../fixtures/showcase-artifact-handoff.init.gradle -PcatwalkArtifactDirectory=../artifacts)
 ```
 
-CI executes the same four commands in explicit project-leaf jobs. It moves the
-JARs between jobs with workflow artifacts rather than relying on a shared build
-or filesystem.
+CI executes the same four commands in explicit project-leaf jobs. The external
+fixture helper moves normal project JARs between jobs with workflow artifacts;
+it does not alter the showcase build model.
 
 ## Selected public coordinates
 

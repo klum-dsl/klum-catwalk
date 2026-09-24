@@ -1,0 +1,43 @@
+/*
+ * Catwalk-only fixture plumbing.
+ *
+ * This init script deliberately lives outside showcase projects so their build
+ * files remain ordinary, copyable adopter examples. Apply it only when Catwalk
+ * needs to move a leaf's normal JAR to another isolated leaf or CI job:
+ *
+ *   ./gradlew exportCatwalkArtifact \
+ *     -I ../../../fixtures/showcase-artifact-handoff.init.gradle \
+ *     -PcatwalkArtifactDirectory=../artifacts
+ */
+gradle.afterProject { project, state ->
+    if (project != project.rootProject || state.failure != null) return
+
+    project.plugins.withId('java') {
+        def artifactDirectory = project.providers.gradleProperty('catwalkArtifactDirectory')
+
+        def jarTask = project.tasks.named('jar')
+        def exportedArtifact = project.provider {
+            if (!artifactDirectory.isPresent()) {
+                throw new GradleException(
+                        'exportCatwalkArtifact requires -PcatwalkArtifactDirectory=<directory>'
+                )
+            }
+            new File(project.file(artifactDirectory.get()), jarTask.get().archiveFile.get().asFile.name)
+        }
+
+        project.tasks.register('exportCatwalkArtifact') {
+            group = 'catwalk fixture plumbing'
+            description = 'Copies this project JAR to Catwalk\'s explicit showcase handoff directory.'
+            dependsOn jarTask
+            inputs.file jarTask.flatMap { it.archiveFile }
+            outputs.file exportedArtifact
+
+            doLast {
+                project.copy {
+                    from jarTask.flatMap { it.archiveFile }
+                    into exportedArtifact.get().parentFile
+                }
+            }
+        }
+    }
+}

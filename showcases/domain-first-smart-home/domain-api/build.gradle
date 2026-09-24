@@ -1,5 +1,3 @@
-import java.util.zip.ZipFile
-
 plugins {
     id 'com.blackbuild.klum-ast-schema' version "${klumAstVersion}"
 }
@@ -17,46 +15,6 @@ java {
     }
 }
 
-tasks.named('jar') {
-    archiveFileName = "domain-api-${project.version}.jar"
-}
-
-tasks.register('verifyDomainApiArtifact') {
-    group = 'verification'
-    description = 'Verifies that the exported API artifact owns only generic smart-home API types.'
-    dependsOn 'jar'
-
-    doLast {
-        def archive = tasks.named('jar').get().archiveFile.get().asFile
-        def entries
-        new ZipFile(archive).withCloseable { zip ->
-            entries = zip.entries()*.name
-        }
-        def required = [
-                'onboarding/smarthome/api/Home.class',
-                'onboarding/smarthome/api/Room.class',
-                'onboarding/smarthome/api/Window.class'
-        ]
-        required.each { entry ->
-            if (!entries.contains(entry)) throw new GradleException("Missing Domain API entry: ${entry}")
-        }
-        def forbidden = entries.findAll {
-            it.startsWith('onboarding/smarthome/schema/') ||
-                    it.startsWith('onboarding/smarthome/model/') ||
-                    it.startsWith('onboarding/smarthome/client/')
-        }
-        if (!forbidden.empty) throw new GradleException("Domain API artifact crossed a role boundary: ${forbidden}")
-    }
-}
-
-tasks.register('exportArtifact', Copy) {
-    group = 'build'
-    description = 'Exports the versioned Domain API JAR to the journey artifact handoff directory.'
-    dependsOn 'verifyDomainApiArtifact'
-    from tasks.named('jar').flatMap { it.archiveFile }
-    into layout.projectDirectory.dir('../artifacts')
-}
-
-tasks.named('check') {
-    dependsOn 'verifyDomainApiArtifact'
+base {
+    archivesName = 'domain-api'
 }

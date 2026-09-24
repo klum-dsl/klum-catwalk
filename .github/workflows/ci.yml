@@ -77,7 +77,11 @@ jobs:
 
       - name: Validate and export Domain API
         working-directory: showcases/domain-first-smart-home/domain-api
-        run: ./gradlew clean check exportArtifact --no-daemon --console=plain
+        run: >-
+          ./gradlew clean check exportCatwalkArtifact
+          -I ../../../fixtures/showcase-artifact-handoff.init.gradle
+          -PcatwalkArtifactDirectory=../artifacts
+          --no-daemon --console=plain
 
       - name: Upload Domain API handoff
         uses: actions/upload-artifact@v4
@@ -114,7 +118,11 @@ jobs:
 
       - name: Validate and export Schema
         working-directory: showcases/domain-first-smart-home/schema
-        run: ./gradlew clean check exportArtifact --no-daemon --console=plain
+        run: >-
+          ./gradlew clean check exportCatwalkArtifact
+          -I ../../../fixtures/showcase-artifact-handoff.init.gradle
+          -PcatwalkArtifactDirectory=../artifacts
+          --no-daemon --console=plain
 
       - name: Upload Schema handoff
         uses: actions/upload-artifact@v4
@@ -151,7 +159,11 @@ jobs:
 
       - name: Validate and export API-only client
         working-directory: showcases/domain-first-smart-home/client
-        run: ./gradlew clean check exportArtifact --no-daemon --console=plain
+        run: >-
+          ./gradlew clean check exportCatwalkArtifact
+          -I ../../../fixtures/showcase-artifact-handoff.init.gradle
+          -PcatwalkArtifactDirectory=../artifacts
+          --no-daemon --console=plain
 
       - name: Upload client handoff
         uses: actions/upload-artifact@v4
@@ -200,7 +212,11 @@ jobs:
 
       - name: Validate and export configured Model
         working-directory: showcases/domain-first-smart-home/model
-        run: ./gradlew clean check exportArtifact --no-daemon --console=plain
+        run: >-
+          ./gradlew clean check exportCatwalkArtifact
+          -I ../../../fixtures/showcase-artifact-handoff.init.gradle
+          -PcatwalkArtifactDirectory=../artifacts
+          --no-daemon --console=plain
 
       - name: Upload configured Model artifact
         uses: actions/upload-artifact@v4

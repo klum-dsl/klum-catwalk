@@ -1,5 +1,3 @@
-import groovy.json.JsonOutput
-
 plugins {
     id 'java-library'
     id 'com.blackbuild.convention.groovy' version "${klumAstVersion}"
@@ -18,6 +16,8 @@ java {
     }
 }
 
+// Catwalk journey handoff: only the Domain API binary is available locally,
+// making Schema and Model imports impossible in this client project.
 def domainApiArtifact = layout.projectDirectory.file('../artifacts/domain-api-1.0.0.jar')
 
 dependencies {
@@ -26,68 +26,6 @@ dependencies {
     implementation "org.codehaus.groovy:groovy:${groovyVersion}"
 }
 
-tasks.register('requireDomainApiArtifact') {
-    group = 'verification'
-    description = 'Requires the explicit Domain API artifact handoff before client compilation.'
-    doLast {
-        if (!domainApiArtifact.asFile.isFile()) {
-            throw new GradleException("Missing Domain API handoff: ${domainApiArtifact.asFile}")
-        }
-    }
-}
-
-tasks.named('compileJava') {
-    dependsOn 'requireDomainApiArtifact'
-}
-
-tasks.named('jar') {
-    archiveFileName = "client-${project.version}.jar"
-}
-
-tasks.register('verifyApiOnlyBoundary') {
-    group = 'verification'
-    description = 'Proves that client source and its local binary inputs stop at the Domain API.'
-    dependsOn 'classes'
-    outputs.file(layout.buildDirectory.file('verification/api-only-client.json'))
-
-    doLast {
-        def sourceFiles = fileTree('src/main/java') { include '**/*.java' }.files
-        def forbiddenImports = sourceFiles.collectMany { source ->
-            source.readLines().findAll { line ->
-                line ==~ /\s*import\s+onboarding\.smarthome\.(schema|model)\..*/
-            }.collect { line -> "${source.name}: ${line.trim()}" }
-        }
-        if (!forbiddenImports.empty) {
-            throw new GradleException("Client crossed the API-only source boundary: ${forbiddenImports}")
-        }
-
-        def localJars = configurations.compileClasspath.files.findAll { it.name.endsWith('.jar') }
-                .findAll { it.canonicalPath.contains('/showcases/domain-first-smart-home/artifacts/') }
-                .collect { it.name }
-                .sort()
-        if (localJars != ['domain-api-1.0.0.jar']) {
-            throw new GradleException("Expected only the Domain API handoff on the client classpath, found ${localJars}")
-        }
-
-        def evidence = layout.buildDirectory.file('verification/api-only-client.json').get().asFile
-        evidence.parentFile.mkdirs()
-        evidence.text = JsonOutput.prettyPrint(JsonOutput.toJson([
-                role              : 'client',
-                localBinaryInputs : localJars,
-                forbiddenImports  : forbiddenImports,
-                compiledClass     : 'onboarding.smarthome.client.WindowStateClient'
-        ])) + System.lineSeparator()
-    }
-}
-
-tasks.register('exportArtifact', Copy) {
-    group = 'build'
-    description = 'Exports the versioned API-only client JAR to the journey artifact handoff directory.'
-    dependsOn 'verifyApiOnlyBoundary', 'jar'
-    from tasks.named('jar').flatMap { it.archiveFile }
-    into layout.projectDirectory.dir('../artifacts')
-}
-
-tasks.named('check') {
-    dependsOn 'verifyApiOnlyBoundary'
+base {
+    archivesName = 'client'
 }

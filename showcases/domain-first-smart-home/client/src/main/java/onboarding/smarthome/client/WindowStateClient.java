@@ -7,7 +7,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * A deliberately small Client Developer example. Its project depends only on the Domain API.
+ * Reads every projected window without importing a concrete Schema, Model,
+ * provider, Builder, or generated DSL type.
  */
 public final class WindowStateClient {
 
