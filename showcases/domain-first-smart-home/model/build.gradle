@@ -29,10 +29,6 @@ dependencies {
     testImplementation files(clientArtifact)
 }
 
-tasks.named('test') {
-    useJUnitPlatform()
-}
-
 base {
     archivesName = 'model'
 }
