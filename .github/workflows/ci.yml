@@ -55,3 +55,156 @@ jobs:
       - name: Validate Layer 3 contracts
         working-directory: validations/layer3-contracts
         run: ./gradlew clean check --no-daemon --console=plain
+
+  smart-home-domain-api:
+    name: Smart home / Domain API
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Validate and export Domain API
+        working-directory: showcases/domain-first-smart-home/domain-api
+        run: ./gradlew clean check exportArtifact --no-daemon --console=plain
+
+      - name: Upload Domain API handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-home-domain-api
+          path: showcases/domain-first-smart-home/artifacts/domain-api-1.0.0.jar
+          if-no-files-found: error
+
+  smart-home-schema:
+    name: Smart home / Schema
+    needs: smart-home-domain-api
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Download Domain API handoff
+        uses: actions/download-artifact@v4
+        with:
+          name: smart-home-domain-api
+          path: showcases/domain-first-smart-home/artifacts
+
+      - name: Validate and export Schema
+        working-directory: showcases/domain-first-smart-home/schema
+        run: ./gradlew clean check exportArtifact --no-daemon --console=plain
+
+      - name: Upload Schema handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-home-schema
+          path: showcases/domain-first-smart-home/artifacts/schema-1.0.0.jar
+          if-no-files-found: error
+
+  smart-home-client:
+    name: Smart home / API-only client
+    needs: smart-home-domain-api
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Download Domain API handoff
+        uses: actions/download-artifact@v4
+        with:
+          name: smart-home-domain-api
+          path: showcases/domain-first-smart-home/artifacts
+
+      - name: Validate and export API-only client
+        working-directory: showcases/domain-first-smart-home/client
+        run: ./gradlew clean check exportArtifact --no-daemon --console=plain
+
+      - name: Upload client handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-home-client
+          path: showcases/domain-first-smart-home/artifacts/client-1.0.0.jar
+          if-no-files-found: error
+
+  smart-home-model:
+    name: Smart home / configured Model
+    needs: [smart-home-domain-api, smart-home-schema, smart-home-client]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Download Domain API handoff
+        uses: actions/download-artifact@v4
+        with:
+          name: smart-home-domain-api
+          path: showcases/domain-first-smart-home/artifacts
+
+      - name: Download Schema handoff
+        uses: actions/download-artifact@v4
+        with:
+          name: smart-home-schema
+          path: showcases/domain-first-smart-home/artifacts
+
+      - name: Download client handoff
+        uses: actions/download-artifact@v4
+        with:
+          name: smart-home-client
+          path: showcases/domain-first-smart-home/artifacts
+
+      - name: Validate and export configured Model
+        working-directory: showcases/domain-first-smart-home/model
+        run: ./gradlew clean check exportArtifact --no-daemon --console=plain
+
+      - name: Upload configured Model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-home-model
+          path: showcases/domain-first-smart-home/artifacts/model-1.0.0.jar
+          if-no-files-found: error

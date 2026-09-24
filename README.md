@@ -10,19 +10,18 @@ Gradle build and intentionally has no root build files or Gradle wrapper.
   direct published-consumer proof.
 - [`validations/layer3-contracts`](validations/layer3-contracts/README.md) — the
   independent SC-3 Layer 3 API + Schema contract validation.
-- [`showcases`](showcases/README.md) — the non-Gradle grouping directory for
-  future independent, named showcase projects.
+- [`showcases/domain-first-smart-home`](showcases/domain-first-smart-home/README.md)
+  — the four-leaf smart-home Layer 3 onboarding journey with explicit binary
+  artifact handoffs.
 
 Each Gradle project is invoked through its own wrapper. Projects do not include,
 compose, or build one another, and there is no root aggregate build.
 
 The [CI workflow](.github/workflows/ci.yml) runs the documented project-local
-commands in explicit per-project jobs: `verifyDirectPublicBaseline` in
-`validations/direct-schema` and `clean check` in
-`validations/layer3-contracts`. It resolves only public coordinates and does
-not perform candidate, release, publish, or deploy work. Future showcases are
-represented in CI by reviewed jobs for their actual role-specific project
-leaves only when those leaves exist; CI has no placeholder job, directory scan,
-or dormant showcase command.
+commands in explicit per-project jobs for both validations and each actual
+smart-home role leaf. It resolves only public coordinates and does not perform
+candidate, release, publish, or deploy work. Showcase JARs move between jobs as
+explicit workflow artifacts; CI has no root aggregate, directory scan,
+placeholder job, or dormant showcase command.
 Repository agent setup remains tracked by
 [issue #2](https://github.com/klum-dsl/klum-catwalk/issues/2).

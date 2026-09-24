@@ -4,9 +4,14 @@
 journey-oriented, runnable KlumAST material. Each
 `showcases/<immutable-kebab-case-journey-slug>/` directory is a non-Gradle
 journey container. Its actual project roots are role-specific leaves such as
-`schema/` and `model/`, with `api/` or `client/` only when the journey needs
-them. Each leaf owns its settings, build, wrapper, sources, and README. No
-showcase has been selected or created yet.
+`schema/` and `model/`, with `domain-api/` or `client/` only when the journey
+needs them. Each leaf owns its settings, build, wrapper, sources, and README.
+
+## Available journeys
+
+- [`domain-first-smart-home`](domain-first-smart-home/README.md) — a Layer 3
+  Domain API, concrete `CityFlat` Schema, configured Model, and API-only client
+  ported from the immutable KlumAST onboarding fixture.
 
 ## Boundaries
 

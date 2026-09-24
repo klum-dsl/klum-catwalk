@@ -1,0 +1,74 @@
+import java.util.zip.ZipFile
+
+plugins {
+    id 'com.blackbuild.klum-ast-schema' version "${klumAstVersion}"
+}
+
+group = 'org.klum.catwalk.showcase.smarthome'
+version = providers.gradleProperty('journeyVersion').get()
+
+klumSchema {
+    groovyVersion = '3'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+def domainApiArtifact = layout.projectDirectory.file('../artifacts/domain-api-1.0.0.jar')
+
+dependencies {
+    implementation files(domainApiArtifact)
+}
+
+tasks.register('requireDomainApiArtifact') {
+    group = 'verification'
+    description = 'Requires the explicit Domain API artifact handoff before Schema compilation.'
+    doLast {
+        if (!domainApiArtifact.asFile.isFile()) {
+            throw new GradleException("Missing Domain API handoff: ${domainApiArtifact.asFile}")
+        }
+    }
+}
+
+tasks.named('compileGroovy') {
+    dependsOn 'requireDomainApiArtifact'
+}
+
+tasks.named('jar') {
+    archiveFileName = "schema-${project.version}.jar"
+}
+
+tasks.register('verifySchemaArtifact') {
+    group = 'verification'
+    description = 'Verifies the concrete CityFlat Schema artifact and its binary Domain API seam.'
+    dependsOn 'jar'
+
+    doLast {
+        def archive = tasks.named('jar').get().archiveFile.get().asFile
+        def entries
+        new ZipFile(archive).withCloseable { zip ->
+            entries = zip.entries()*.name
+        }
+        if (!entries.contains('onboarding/smarthome/schema/CityFlat.class')) {
+            throw new GradleException('Schema artifact is missing CityFlat')
+        }
+        if (entries.any { it.startsWith('onboarding/smarthome/api/') }) {
+            throw new GradleException('Schema artifact repackaged Domain API classes')
+        }
+    }
+}
+
+tasks.register('exportArtifact', Copy) {
+    group = 'build'
+    description = 'Exports the versioned Schema JAR to the journey artifact handoff directory.'
+    dependsOn 'verifySchemaArtifact'
+    from tasks.named('jar').flatMap { it.archiveFile }
+    into layout.projectDirectory.dir('../artifacts')
+}
+
+tasks.named('check') {
+    dependsOn 'verifySchemaArtifact'
+}
