@@ -1,0 +1,31 @@
+plugins {
+    id 'java-library'
+    id 'com.blackbuild.convention.groovy' version "${klumAstVersion}"
+}
+
+group = 'org.klum.catwalk.showcase.smarthome'
+version = providers.gradleProperty('journeyVersion').get()
+
+groovyDependencies {
+    groovyVersion = '3'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+// Catwalk journey handoff: only the Domain API binary is available locally,
+// making Schema and Model imports impossible in this client project.
+def domainApiArtifact = layout.projectDirectory.file('../artifacts/domain-api-1.0.0.jar')
+
+dependencies {
+    api files(domainApiArtifact)
+    implementation "com.blackbuild.klum.ast:klum-ast-runtime:${klumAstVersion}"
+    implementation "org.codehaus.groovy:groovy:${groovyVersion}"
+}
+
+base {
+    archivesName = 'client'
+}

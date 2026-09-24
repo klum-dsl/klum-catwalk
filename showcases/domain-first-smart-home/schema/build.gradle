@@ -1,0 +1,29 @@
+plugins {
+    id 'com.blackbuild.klum-ast-schema' version "${klumAstVersion}"
+}
+
+group = 'org.klum.catwalk.showcase.smarthome'
+version = providers.gradleProperty('journeyVersion').get()
+
+klumSchema {
+    groovyVersion = '3'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+// Catwalk journey handoff: an ordinary binary dependency keeps this project
+// isolated from the Domain API build. Replace the path with your repository
+// coordinate when adapting the showcase to a published multi-project system.
+def domainApiArtifact = layout.projectDirectory.file('../artifacts/domain-api-1.0.0.jar')
+
+dependencies {
+    implementation files(domainApiArtifact)
+}
+
+base {
+    archivesName = 'schema'
+}

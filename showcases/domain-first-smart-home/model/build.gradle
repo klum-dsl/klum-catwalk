@@ -1,0 +1,34 @@
+plugins {
+    id 'com.blackbuild.klum-ast-model' version "${klumAstVersion}"
+}
+
+group = 'org.klum.catwalk.showcase.smarthome'
+version = providers.gradleProperty('journeyVersion').get()
+
+klumModel {
+    groovyVersion = '3'
+    topLevelScript 'onboarding.smarthome.schema.CityFlat', 'onboarding.smarthome.model.CityFlatModel'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+// Catwalk journey handoffs. These are ordinary binary inputs rather than
+// project dependencies, source composition, or an included build.
+def domainApiArtifact = layout.projectDirectory.file('../artifacts/domain-api-1.0.0.jar')
+def schemaArtifact = layout.projectDirectory.file('../artifacts/schema-1.0.0.jar')
+def clientArtifact = layout.projectDirectory.file('../artifacts/client-1.0.0.jar')
+
+dependencies {
+    schemas files(schemaArtifact)
+    implementation files(domainApiArtifact)
+    implementation "com.blackbuild.klum.ast:klum-ast-runtime:${klumAstVersion}"
+    testImplementation files(clientArtifact)
+}
+
+base {
+    archivesName = 'model'
+}
