@@ -11,16 +11,17 @@ at KlumAST commit
 [`e17085870ec05ff8f0becdd75f033cd7abb29aac`](https://github.com/klum-dsl/klum-ast/commit/e17085870ec05ff8f0becdd75f033cd7abb29aac).
 The domain types, floorplan, configured values, generic client, and documentary
 story assertions are preserved. The annotation imports are adapted to the
-canonical public 4.0.1 packages established by S1, and the `DisplayName`
-annotation is compiled as Java before the Schema Groovy sources to satisfy the
-released compiler's annotation-validation order. Catwalk otherwise changes the
-delivery topology: upstream's aggregate fixture becomes independent leaf
-projects with explicit binary handoffs.
+canonical public 4.0.1 packages established by S1. The Groovy `DisplayName`
+annotation moves into the Domain API that owns its target property, so it is
+already compiled when the concrete Schema assigns labels. Catwalk otherwise
+changes the delivery topology: upstream's aggregate fixture becomes
+independent leaf projects with explicit binary handoffs.
 
 ## Roles and boundaries
 
 - [`domain-api/`](domain-api/README.md) owns abstract `Home`, `Room`, `Window`,
-  and device DSL types. Its bounded `windows` Cluster makes the window context
+  device DSL types, and the reusable `DisplayName` vocabulary for its
+  `displayName` property. Its bounded `windows` Cluster makes the window context
   explicit in Model scripts.
 - [`schema/`](schema/README.md) consumes that JAR and owns the concrete
   `CityFlat` floorplan.

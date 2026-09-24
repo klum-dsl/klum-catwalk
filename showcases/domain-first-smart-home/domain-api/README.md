@@ -2,7 +2,9 @@
 
 This independent Gradle project owns the abstract, backend-neutral smart-home
 DSL: homes, rooms, windows, devices, and provider-specific device variants. It
-contains no floorplan Schema, configured Model, or client code.
+also owns the reusable `DisplayName` annotation because `displayName` is a
+Domain API property; concrete Schemas still choose the actual labels. The
+project contains no floorplan Schema, configured Model, or client code.
 
 Run the copyable project's normal command from this directory:
 

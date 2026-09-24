@@ -2,6 +2,7 @@ package onboarding.smarthome.schema
 
 import com.blackbuild.klum.ast.DSL
 import com.blackbuild.klum.ast.Required
+import onboarding.smarthome.api.DisplayName
 import onboarding.smarthome.api.HeatedRoom
 import onboarding.smarthome.api.Home
 import onboarding.smarthome.api.SmokeDetector

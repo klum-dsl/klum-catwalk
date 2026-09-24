@@ -12,9 +12,11 @@ normal command:
 ```
 
 It applies the public `com.blackbuild.klum-ast-schema` plugin at `4.0.1` on
-Groovy 3. The Schema-owned `DisplayName` meta-annotation is Java because the
-released compiler validates it only after it has been compiled; Java compilation
-provides that ordering without a custom source set or build task.
+Groovy 3. The Domain API supplies the Groovy `DisplayName` annotation; this
+Schema owns only the concrete labels it assigns to its room and window types.
+Because the annotation arrives in the already-compiled Domain API JAR, public
+4.0.1 can validate its `@DefaultValues` contract without special source sets or
+build tasks.
 
 Catwalk journey orchestration copies the normal `schema-1.0.0.jar` with the
 external fixture helper described in the [journey README](../README.md). No
