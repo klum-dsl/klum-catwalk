@@ -193,6 +193,8 @@ class ResourceValues {
 /** Podinfo ingress values. */
 @DSL
 class IngressValues {
+    private static final String DNS_HOSTNAME = /(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*/
+
     /** Whether an Ingress resource is rendered. */
     boolean enabled
 
@@ -204,6 +206,9 @@ class IngressValues {
 
     /** Allows the Model script to enable the standard nginx route with one hostname. */
     static IngressValues fromHostname(String hostname) {
+        if (!(hostname ==~ DNS_HOSTNAME)) {
+            throw new IllegalArgumentException('ingress hostname must be a lowercase DNS hostname')
+        }
         IngressValues.Create.With(
                 enabled: true,
                 className: 'nginx',

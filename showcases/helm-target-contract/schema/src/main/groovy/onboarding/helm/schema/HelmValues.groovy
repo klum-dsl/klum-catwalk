@@ -7,7 +7,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import java.nio.file.Files
 import java.nio.file.Path
 
-/** Contract implemented by top-level models that can be emitted as Helm values. */
+/** Contract implemented by completed output models that can be emitted as one Helm values file. */
 interface HelmValues<T> {
 
     /**
@@ -18,7 +18,7 @@ interface HelmValues<T> {
     T toHelmValues()
 }
 
-/** Small production client that turns a completed top-level model into a values file. */
+/** Small production client that turns one completed output model into a values file. */
 final class HelmValuesWriter {
     private final ObjectMapper yaml = new ObjectMapper(new YAMLFactory())
             .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)

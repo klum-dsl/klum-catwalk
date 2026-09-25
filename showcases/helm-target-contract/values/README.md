@@ -5,9 +5,11 @@ This independent Gradle project consumes only the compiled
 Model script, not a wrapper class, and is registered as the `PodinfoStack`
 classpath entry point. `PodinfoValuesClient` loads that completed stack and
 delegates each release's actual YAML output to the Schema's `HelmValuesWriter`.
-The documentary test has a separate entry-point read-and-validation case and a
-verbatim frontend YAML assertion, then verifies the vendored Podinfo `6.15.0`
-archive and renders both scenarios with Helm `4.3.0` entirely from local inputs.
+The default documentary tests have a separate entry-point read-and-validation
+case, then verify the vendored Podinfo `6.15.0` archive and render both scenarios
+with Helm `4.3.0` entirely from local inputs. A separate opt-in test preserves a
+readable verbatim frontend YAML projection without making formatting a default
+compatibility gate.
 
 After providing the Schema handoff and Helm `4.3.0` on `PATH`, run its normal
 command:
@@ -22,6 +24,12 @@ To run the production client explicitly and write both values files:
 ./gradlew generateHelmValues
 ```
 
+To inspect the pinned mapper's byte-for-byte documentary projection separately:
+
+```shell
+./gradlew verbatimYaml
+```
+
 Generated values are written to `build/generated-values/`; rendered Kubernetes
 documents are written to `build/rendered-manifests/`. The test compares parsed
 values with semantic values goldens, and compares a deliberately selected
@@ -29,6 +37,10 @@ summary of rendered workloads, services, images, Redis/backend wiring, and
 ingress routing with semantic render goldens. It pins Kubernetes capabilities
 to `1.34.0` and skips chart tests. It performs no chart download, dependency
 update, cluster access, install, or deployment during rendering.
+
+The verbatim tracer is pedagogical evidence for the pinned mapper/configuration,
+not a public formatting or ordering promise. Parsed YAML and rendered manifests
+remain the executable semantic contracts.
 
 The project applies the public KlumAST Model plugin `4.0.1`, consumes
 `com.blackbuild.klum.ast:klum-ast-runtime:4.0.1`, Groovy `3.0.25`, Jackson YAML

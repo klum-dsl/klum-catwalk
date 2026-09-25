@@ -43,15 +43,16 @@ limits. Its `frontend` member names the backend release and ingress host;
 converters derive the Podinfo service URL and complete ingress shape, while
 resource limits default from requests.
 
-The top-level model implements the Schema's `HelmValues` interface and already
-has the same shape as the target YAML. `HelmValuesWriter` therefore uses direct
-Jackson serialization rather than manually reconstructing a second map tree.
+Each completed `PodinfoRelease` owned by the top-level stack implements the
+Schema's `HelmValues` interface and already has the same shape as one target
+YAML file. `HelmValuesWriter` therefore uses direct Jackson serialization
+rather than manually reconstructing a second map tree.
 The production `PodinfoValuesClient` loads and validates the combined
 `PodinfoStack` through `Create.FromClasspath()` and writes both actual
 `<release>.values.yaml` files. The documentary test calls that client; YAML
-emission is not test-owned plumbing. A focused assertion also shows the entire
-frontend Model-to-verbatim-YAML projection in one place, while the semantic
-goldens remain insensitive to formatting.
+emission is not test-owned plumbing. An opt-in documentary test also shows the
+entire frontend Model-to-verbatim-YAML projection in one place; the default
+semantic goldens remain insensitive to formatting and are the correctness gate.
 
 The values tests compare parsed generated YAML with checked-in semantic values
 goldens. They then run `helm template` from the vendored chart and generated

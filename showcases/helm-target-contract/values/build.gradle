@@ -33,9 +33,25 @@ tasks.withType(Test).configureEach {
     systemProperty 'kubernetesVersion', providers.gradleProperty('kubernetesVersion').get()
 }
 
+tasks.named('test', Test) {
+    useJUnitPlatform {
+        excludeTags 'format-tracer'
+    }
+}
+
+tasks.register('verbatimYaml', Test) {
+    group = 'verification'
+    description = 'Runs the opt-in byte-for-byte YAML documentary tracer.'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'format-tracer'
+    }
+}
+
 tasks.register('generateHelmValues', JavaExec) {
     group = 'build'
-    description = 'Loads the configured Podinfo Models and writes their values.yaml files.'
+    description = 'Loads the configured PodinfoStack Model and writes its values.yaml files.'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'onboarding.helm.values.PodinfoValuesClient'
     args layout.buildDirectory.dir('generated-values').get().asFile.absolutePath

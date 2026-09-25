@@ -51,6 +51,15 @@ class PodinfoReleaseSpec extends Specification {
         }
     }
 
+    def 'rejects an ingress hostname outside the supported lowercase DNS subset'() {
+        when:
+        IngressValues.fromHostname('Frontend_example.test')
+
+        then:
+        IllegalArgumentException error = thrown()
+        error.message.contains('lowercase DNS hostname')
+    }
+
     def 'rejects an invalid image tag and missing resources'() {
         when:
         PodinfoRelease.Create.With('frontend') {

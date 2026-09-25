@@ -36,6 +36,7 @@ class PodinfoHelmContractSpec extends Specification {
         !KlumObjectSupport.of(stack).validation.result.has(Validate.Level.ERROR)
     }
 
+    @Tag('format-tracer')
     def 'writes a completed frontend Model as verbatim values YAML'() {
         given:
         PodinfoValuesClient client = new PodinfoValuesClient()
