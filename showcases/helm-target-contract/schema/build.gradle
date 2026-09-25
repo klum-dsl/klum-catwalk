@@ -1,0 +1,20 @@
+plugins {
+    id 'com.blackbuild.klum-ast-schema' version "${klumAstVersion}"
+}
+
+group = 'org.klum.catwalk.showcase.helm'
+version = providers.gradleProperty('journeyVersion').get()
+
+klumSchema {
+    groovyVersion = '3'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+base {
+    archivesName = 'schema'
+}

@@ -1,0 +1,33 @@
+plugins {
+    id 'java-library'
+    id 'groovy'
+    id 'com.blackbuild.convention.groovy' version "${klumAstVersion}"
+}
+
+group = 'org.klum.catwalk.showcase.helm'
+version = providers.gradleProperty('journeyVersion').get()
+
+groovyDependencies {
+    groovyVersion = '3'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+// Catwalk journey handoff: the authoring project sees the compiled Schema,
+// never its sources or an included build.
+def schemaArtifact = layout.projectDirectory.file('../artifacts/schema-1.0.0.jar')
+
+dependencies {
+    implementation files(schemaArtifact)
+    implementation "com.blackbuild.klum.ast:klum-ast-runtime:${klumAstVersion}"
+    implementation "org.codehaus.groovy:groovy:${groovyVersion}"
+    testImplementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonYamlVersion}"
+}
+
+base {
+    archivesName = 'values'
+}

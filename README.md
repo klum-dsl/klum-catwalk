@@ -13,13 +13,16 @@ Gradle build and intentionally has no root build files or Gradle wrapper.
 - [`showcases/domain-first-smart-home`](showcases/domain-first-smart-home/README.md)
   — the four-leaf smart-home Layer 3 onboarding journey with explicit binary
   artifact handoffs.
+- [`showcases/helm-target-contract`](showcases/helm-target-contract/README.md)
+  — the two-leaf direct-Schema Helm authoring journey with semantic values
+  contract checks.
 
 Each Gradle project is invoked through its own wrapper. Projects do not include,
 compose, or build one another, and there is no root aggregate build.
 
 The [CI workflow](.github/workflows/ci.yml) runs the documented project-local
 commands in explicit per-project jobs for both validations and each actual
-smart-home role leaf. It resolves only public coordinates and does not perform
+showcase role leaf. It resolves only public coordinates and does not perform
 candidate, release, publish, or deploy work. Showcase JARs move between jobs as
 explicit workflow artifacts; CI has no root aggregate, directory scan,
 placeholder job, or dormant showcase command. The opt-in handoff task comes
