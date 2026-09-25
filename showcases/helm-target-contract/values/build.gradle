@@ -1,0 +1,62 @@
+plugins {
+    id 'com.blackbuild.klum-ast-model' version "${klumAstVersion}"
+}
+
+group = 'org.klum.catwalk.showcase.helm'
+version = providers.gradleProperty('journeyVersion').get()
+
+klumModel {
+    groovyVersion = '3'
+    topLevelScript 'onboarding.helm.schema.PodinfoStack', 'onboarding.helm.values.PodinfoStackModel'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+// Catwalk journey handoff: the authoring project sees the compiled Schema,
+// never its sources or an included build.
+def schemaArtifact = layout.projectDirectory.file('../artifacts/schema-1.0.0.jar')
+
+dependencies {
+    schemas files(schemaArtifact)
+    implementation "com.blackbuild.klum.ast:klum-ast-runtime:${klumAstVersion}"
+    implementation "org.codehaus.groovy:groovy:${groovyVersion}"
+    runtimeOnly "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonYamlVersion}"
+    testImplementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonYamlVersion}"
+}
+
+tasks.withType(Test).configureEach {
+    systemProperty 'helmVersion', providers.gradleProperty('helmVersion').get()
+    systemProperty 'kubernetesVersion', providers.gradleProperty('kubernetesVersion').get()
+}
+
+tasks.named('test', Test) {
+    useJUnitPlatform {
+        excludeTags 'format-tracer'
+    }
+}
+
+tasks.register('verbatimYaml', Test) {
+    group = 'verification'
+    description = 'Runs the opt-in byte-for-byte YAML documentary tracer.'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'format-tracer'
+    }
+}
+
+tasks.register('generateHelmValues', JavaExec) {
+    group = 'build'
+    description = 'Loads the configured PodinfoStack Model and writes its values.yaml files.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'onboarding.helm.values.PodinfoValuesClient'
+    args layout.buildDirectory.dir('generated-values').get().asFile.absolutePath
+}
+
+base {
+    archivesName = 'values'
+}

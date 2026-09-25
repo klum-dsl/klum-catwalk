@@ -1,0 +1,24 @@
+replicaCount: 2
+image:
+  repository: ghcr.io/stefanprodan/podinfo
+  tag: 6.15.0
+ui:
+  message: Frontend to backend
+backend: http://backend-podinfo:9898/echo
+redis:
+  enabled: false
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 50m
+    memory: 64Mi
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: frontend.example.test
+      paths:
+        - path: /
+          pathType: Prefix

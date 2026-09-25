@@ -1,0 +1,17 @@
+release: frontend
+deployments:
+  - frontend-podinfo
+services:
+  - frontend-podinfo
+podinfo:
+  replicas: 2
+  image: ghcr.io/stefanprodan/podinfo:6.15.0
+  cacheServer:
+  backendUrl: http://backend-podinfo:9898/echo
+redis:
+ingress:
+  className: nginx
+  hosts:
+    - frontend.example.test
+  services:
+    - frontend-podinfo

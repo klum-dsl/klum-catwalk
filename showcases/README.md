@@ -1,6 +1,6 @@
 # Showcases
 
-`showcases/` is a non-Gradle grouping directory reserved for future
+`showcases/` is a non-Gradle grouping directory for
 journey-oriented, runnable KlumAST material. Each
 `showcases/<immutable-kebab-case-journey-slug>/` directory is a non-Gradle
 journey container. Its actual project roots are role-specific leaves such as
@@ -12,6 +12,9 @@ needs them. Each leaf owns its settings, build, wrapper, sources, and README.
 - [`domain-first-smart-home`](domain-first-smart-home/README.md) — a Layer 3
   Domain API, concrete `CityFlat` Schema, configured Model, and API-only client
   ported from the immutable KlumAST onboarding fixture.
+- [`helm-target-contract`](helm-target-contract/README.md) — a direct-Schema
+  Podinfo backend/Redis and frontend/ingress journey with a binary Schema
+  handoff plus offline semantic values and rendered-manifest checks.
 
 ## Boundaries
 

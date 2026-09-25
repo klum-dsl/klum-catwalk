@@ -224,3 +224,81 @@ jobs:
           name: smart-home-model
           path: showcases/domain-first-smart-home/artifacts/model-1.0.0.jar
           if-no-files-found: error
+
+  helm-target-schema:
+    name: Helm target contract / Schema
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Validate and export Helm Schema
+        working-directory: showcases/helm-target-contract/schema
+        run: >-
+          ./gradlew clean check exportCatwalkArtifact
+          -I ../../../fixtures/showcase-artifact-handoff.init.gradle
+          -PcatwalkArtifactDirectory=../artifacts
+          --no-daemon --console=plain
+
+      - name: Upload Helm Schema handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-target-schema
+          path: showcases/helm-target-contract/artifacts/schema-1.0.0.jar
+          if-no-files-found: error
+
+  helm-target-values:
+    name: Helm target contract / values
+    needs: helm-target-schema
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Set up Helm 4.3.0
+        uses: azure/setup-helm@v4
+        with:
+          version: v4.3.0
+
+      - name: Download Helm Schema handoff
+        uses: actions/download-artifact@v4
+        with:
+          name: helm-target-schema
+          path: showcases/helm-target-contract/artifacts
+
+      - name: Render and validate Helm values
+        working-directory: showcases/helm-target-contract/values
+        run: ./gradlew clean check --no-daemon --console=plain
+
+      - name: Upload generated Helm values
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-target-values
+          path: |
+            showcases/helm-target-contract/values/build/generated-values/*.yaml
+            showcases/helm-target-contract/values/build/rendered-manifests/*.yaml
+          if-no-files-found: error

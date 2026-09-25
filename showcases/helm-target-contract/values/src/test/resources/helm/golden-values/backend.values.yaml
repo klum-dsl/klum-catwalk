@@ -1,0 +1,17 @@
+replicaCount: 2
+image:
+  repository: ghcr.io/stefanprodan/podinfo
+  tag: 6.15.0
+ui:
+  message: Backend with Redis
+redis:
+  enabled: true
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+ingress:
+  enabled: false
