@@ -1,7 +1,9 @@
 # Podinfo target-contract Schema leaf
 
-This independent Gradle project owns the `PodinfoRelease` contract for Podinfo
-chart `6.15.0`. Its fields follow the nested `values.yaml` output directly:
+This independent Gradle project owns the single top-level `PodinfoStack` and
+its `PodinfoRelease` contract for Podinfo chart `6.15.0`. The stack contains the
+backend and frontend releases so a Model library publishes one registered entry
+point. Each release's fields follow the nested `values.yaml` output directly:
 image, UI, backend, Redis, resources, and ingress. Typed converter methods make
 those fields fluent on input (`ui 'message'`, `backend 'release'`,
 `ingress 'host'`, and `resources '50m', '64Mi'`) without introducing a separate

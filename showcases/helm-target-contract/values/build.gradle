@@ -7,6 +7,7 @@ version = providers.gradleProperty('journeyVersion').get()
 
 klumModel {
     groovyVersion = '3'
+    topLevelScript 'onboarding.helm.schema.PodinfoStack', 'onboarding.helm.values.PodinfoStackModel'
 }
 
 java {

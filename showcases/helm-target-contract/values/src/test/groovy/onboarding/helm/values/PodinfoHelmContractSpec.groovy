@@ -5,6 +5,7 @@ import com.blackbuild.klum.ast.runtime.KlumObjectSupport
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import onboarding.helm.schema.PodinfoRelease
+import onboarding.helm.schema.PodinfoStack
 import spock.lang.Issue
 import spock.lang.See
 import spock.lang.Specification
@@ -25,15 +26,52 @@ class PodinfoHelmContractSpec extends Specification {
     private final String chartVersion = pin.getProperty('chartVersion')
     private final Path chart = Path.of('src', 'test', 'resources', 'helm', 'chart', "podinfo-${chartVersion}.tgz")
 
-    def 'reads the Model scripts and validates the completed top-level releases'() {
+    def 'reads the single Model entry point and validates the completed stack'() {
         when:
-        List<PodinfoRelease> releases = new PodinfoValuesClient().readModels()
+        PodinfoStack stack = new PodinfoValuesClient().readModel()
 
         then:
-        releases*.name == ['backend', 'frontend']
-        releases.every { release ->
-            !KlumObjectSupport.of(release).validation.result.has(Validate.Level.ERROR)
-        }
+        stack.backend.name == 'backend'
+        stack.frontend.name == 'frontend'
+        !KlumObjectSupport.of(stack).validation.result.has(Validate.Level.ERROR)
+    }
+
+    def 'writes a completed frontend Model as verbatim values YAML'() {
+        given:
+        PodinfoValuesClient client = new PodinfoValuesClient()
+        PodinfoStack stack = client.readModel()
+
+        when:
+        Path frontendValues = client.writeValues(stack, Path.of('build', 'verbatim-values'))
+                .find { it.fileName.toString() == 'frontend.values.yaml' }
+
+        then:
+        Files.readString(frontendValues) == '''---
+replicaCount: 2
+image:
+  repository: "ghcr.io/stefanprodan/podinfo"
+  tag: "6.15.0"
+ui:
+  message: "Frontend to backend"
+backend: "http://backend-podinfo:9898/echo"
+redis:
+  enabled: false
+resources:
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+  limits:
+    cpu: "50m"
+    memory: "64Mi"
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+  - host: "frontend.example.test"
+    paths:
+    - path: "/"
+      pathType: "Prefix"
+'''
     }
 
     def 'uses the pinned Podinfo chart archive and Helm renderer'() {
@@ -85,7 +123,7 @@ class PodinfoHelmContractSpec extends Specification {
         actualSummary == expectedSummary
 
         where:
-        release << new PodinfoValuesClient().readModels()
+        release << new PodinfoValuesClient().readModel().with { [backend, frontend] }
     }
 
     private List<Map<String, Object>> readDocuments(String rendered) {

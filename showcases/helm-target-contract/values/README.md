@@ -1,13 +1,13 @@
 # Podinfo target-contract values leaf
 
 This independent Gradle project consumes only the compiled
-`../artifacts/schema-1.0.0.jar`. `BackendWithRedisValues` and
-`FrontendToBackendValues` are concise executable Model scripts, not wrapper
-classes. `PodinfoValuesClient` loads the scripts as completed top-level
-`PodinfoRelease` models and delegates actual YAML output to the Schema's
-`HelmValuesWriter`. The documentary test has a separate read-and-validation
-case, then verifies the vendored Podinfo `6.15.0` archive and renders both
-scenarios with Helm `4.3.0` entirely from local inputs.
+`../artifacts/schema-1.0.0.jar`. `PodinfoStackModel` is one concise executable
+Model script, not a wrapper class, and is registered as the `PodinfoStack`
+classpath entry point. `PodinfoValuesClient` loads that completed stack and
+delegates each release's actual YAML output to the Schema's `HelmValuesWriter`.
+The documentary test has a separate entry-point read-and-validation case and a
+verbatim frontend YAML assertion, then verifies the vendored Podinfo `6.15.0`
+archive and renders both scenarios with Helm `4.3.0` entirely from local inputs.
 
 After providing the Schema handoff and Helm `4.3.0` on `PATH`, run its normal
 command:
