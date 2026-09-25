@@ -7,37 +7,49 @@ import com.blackbuild.klum.ast.Required
 import com.blackbuild.klum.ast.Validate
 import com.blackbuild.klum.ast.layer3.AutoCreate
 
+/**
+ * Concise direct-Schema authoring model for the pinned Podinfo 6.15.0 values contract.
+ */
 @DSL
-class ServiceRelease {
+class PodinfoRelease {
 
     @Key String name
 
-    String imageRegistry = 'ghcr.io/acme'
-
-    @Default(code = { "$imageRegistry/$name" })
-    String imageRepository
-
-    String imageTag
+    String imageRepository = 'ghcr.io/stefanprodan/podinfo'
+    String imageTag = '6.15.0'
     int replicaCount = 2
-    int containerPort = 8080
-    boolean publiclyReachable
+    String uiMessage
+    boolean redisEnabled
+    String backendRelease
+    boolean ingressEnabled
+    String ingressClassName = 'nginx'
 
-    @Default(code = { publiclyReachable ? "${name}.example.test" : null })
+    @Default(code = { ingressEnabled ? "${name}.example.test" : null })
     String hostname
 
     @Required('resources with requests and limits are required')
     ResourceRequirements resources
 
-    /** Expands the concise authoring model into the pinned Helm values contract. */
+    /** Expands the authoring conveniences into Podinfo chart values. */
     Map<String, Object> toHelmValues() {
         Map<String, Object> values = new LinkedHashMap<>()
         values.replicaCount = replicaCount
         values.image = [repository: imageRepository, tag: imageTag]
-        values.service = [type: 'ClusterIP', port: containerPort, targetPort: containerPort]
+        if (uiMessage) {
+            values.ui = [message: uiMessage]
+        }
+        if (backendRelease) {
+            values.backend = "http://${backendRelease}-podinfo:9898/echo".toString()
+        }
+        values.redis = [enabled: redisEnabled]
         values.resources = resources.toHelmValues()
-        Map<String, Object> ingress = [enabled: publiclyReachable]
-        if (publiclyReachable) {
-            ingress.put('hosts', [[host: hostname, paths: [[path: '/', pathType: 'Prefix']]]])
+        Map<String, Object> ingress = [enabled: ingressEnabled]
+        if (ingressEnabled) {
+            ingress.className = ingressClassName
+            ingress.hosts = [[
+                    host : hostname,
+                    paths: [[path: '/', pathType: 'Prefix']]
+            ]]
         }
         values.ingress = ingress
         values
@@ -45,17 +57,18 @@ class ServiceRelease {
 
     @Validate
     void requiresSemanticImageTag() {
-        assert imageTag ==~ /\d+\.\d+\.\d+/ : 'imageTag must be a semantic version such as 1.4.0'
+        assert imageTag ==~ /\d+\.\d+\.\d+/ : 'imageTag must be a semantic version such as 6.15.0'
     }
 
     @Validate
-    void requiresValidContainerPort() {
-        assert containerPort in 1..65535 : 'containerPort must be between 1 and 65535'
+    void requiresDnsSafeBackendRelease() {
+        assert !backendRelease || backendRelease ==~ /[a-z0-9]([-a-z0-9]*[a-z0-9])?/ :
+                'backendRelease must be a DNS label'
     }
 
     @Validate
-    void requiresHostnameForPublicIngress() {
-        assert !publiclyReachable || hostname : 'publicly reachable releases need a hostname'
+    void requiresHostnameForIngress() {
+        assert !ingressEnabled || hostname : 'ingress-enabled releases need a hostname'
     }
 }
 

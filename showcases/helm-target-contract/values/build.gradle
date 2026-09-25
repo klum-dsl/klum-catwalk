@@ -28,6 +28,11 @@ dependencies {
     testImplementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonYamlVersion}"
 }
 
+tasks.withType(Test).configureEach {
+    systemProperty 'helmVersion', providers.gradleProperty('helmVersion').get()
+    systemProperty 'kubernetesVersion', providers.gradleProperty('kubernetesVersion').get()
+}
+
 base {
     archivesName = 'values'
 }

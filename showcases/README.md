@@ -13,8 +13,8 @@ needs them. Each leaf owns its settings, build, wrapper, sources, and README.
   Domain API, concrete `CityFlat` Schema, configured Model, and API-only client
   ported from the immutable KlumAST onboarding fixture.
 - [`helm-target-contract`](helm-target-contract/README.md) — a direct-Schema
-  catalog-and-billing authoring journey with a binary Schema handoff and
-  semantic Helm values checks, ported from an immutable KlumAST fixture.
+  Podinfo backend/Redis and frontend/ingress journey with a binary Schema
+  handoff plus offline semantic values and rendered-manifest checks.
 
 ## Boundaries
 

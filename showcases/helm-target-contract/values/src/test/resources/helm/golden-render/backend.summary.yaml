@@ -1,0 +1,15 @@
+release: backend
+deployments:
+  - backend-podinfo
+  - backend-podinfo-redis
+services:
+  - backend-podinfo
+  - backend-podinfo-redis
+podinfo:
+  replicas: 2
+  image: ghcr.io/stefanprodan/podinfo:6.15.0
+  cacheServer: --cache-server=tcp://backend-podinfo-redis:6379
+  backendUrl:
+redis:
+  image: docker.io/redis:8.8.0
+ingress:

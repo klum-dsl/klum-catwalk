@@ -279,6 +279,11 @@ jobs:
         with:
           cache-provider: basic
 
+      - name: Set up Helm 4.3.0
+        uses: azure/setup-helm@v4
+        with:
+          version: v4.3.0
+
       - name: Download Helm Schema handoff
         uses: actions/download-artifact@v4
         with:
@@ -293,5 +298,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: helm-target-values
-          path: showcases/helm-target-contract/values/build/generated-values/*.yaml
+          path: |
+            showcases/helm-target-contract/values/build/generated-values/*.yaml
+            showcases/helm-target-contract/values/build/rendered-manifests/*.yaml
           if-no-files-found: error

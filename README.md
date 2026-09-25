@@ -14,8 +14,8 @@ Gradle build and intentionally has no root build files or Gradle wrapper.
   — the four-leaf smart-home Layer 3 onboarding journey with explicit binary
   artifact handoffs.
 - [`showcases/helm-target-contract`](showcases/helm-target-contract/README.md)
-  — the two-leaf direct-Schema Helm authoring journey with semantic values
-  contract checks.
+  — the two-leaf direct-Schema Podinfo Helm journey with offline semantic
+  values and rendered-manifest contract checks.
 
 Each Gradle project is invoked through its own wrapper. Projects do not include,
 compose, or build one another, and there is no root aggregate build.
