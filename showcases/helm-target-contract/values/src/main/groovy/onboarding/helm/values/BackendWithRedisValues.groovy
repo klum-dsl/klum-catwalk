@@ -2,17 +2,9 @@ package onboarding.helm.values
 
 import onboarding.helm.schema.PodinfoRelease
 
-/** Podinfo backend authoring input with an in-chart Redis deployment. */
-class BackendWithRedisValues {
-
-    static PodinfoRelease create() {
-        PodinfoRelease.Create.With('backend') {
-            uiMessage 'Backend with Redis'
-            redisEnabled true
-            resources {
-                requests { cpu '100m'; memory '64Mi' }
-                limits { cpu '200m'; memory '128Mi' }
-            }
-        }
-    }
+// Four declarative lines produce the complete backend values tree.
+PodinfoRelease.Create.With('backend') {
+    ui 'Backend with Redis'
+    redis true
+    resources '100m', '64Mi', '200m', '128Mi'
 }

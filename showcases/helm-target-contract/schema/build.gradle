@@ -18,3 +18,7 @@ java {
 base {
     archivesName = 'schema'
 }
+
+dependencies {
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonYamlVersion}"
+}

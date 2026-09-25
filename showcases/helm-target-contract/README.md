@@ -1,9 +1,10 @@
 # Podinfo Helm target-contract direct-Schema journey
 
 This Catwalk showcase authors and verifies values for the real Podinfo Helm
-chart through two independently runnable consumer projects. A direct
-`PodinfoRelease` Schema provides concise defaults and target-specific
-conveniences; the values leaf renders a backend with Redis and an
+chart through two independently runnable projects. A direct
+`PodinfoRelease` Schema follows Podinfo's nested `values.yaml` structure;
+converter-backed field types keep the Model syntax concise. The values leaf
+renders a backend with Redis and an
 ingress-enabled frontend connected to that backend.
 
 ## Immutable target and license
@@ -35,11 +36,19 @@ contract with the immutable Podinfo target above.
 ## Inputs and semantic evidence
 
 - [`BackendWithRedisValues.groovy`](values/src/main/groovy/onboarding/helm/values/BackendWithRedisValues.groovy)
-  enables Podinfo's in-chart Redis deployment and supplies explicit resource
-  requests and limits.
+  is a four-line KlumAST Model script that enables Podinfo's in-chart Redis
+  deployment and supplies explicit resource requests and limits.
 - [`FrontendToBackendValues.groovy`](values/src/main/groovy/onboarding/helm/values/FrontendToBackendValues.groovy)
-  names the backend release; the Schema derives Podinfo's backend URL, enables
-  ingress, derives the host, and defaults limits from requests.
+  is a five-line Model script that names the backend release and ingress host;
+  converters derive the Podinfo service URL and complete ingress shape, while
+  resource limits default from requests.
+
+The top-level model implements the Schema's `HelmValues` interface and already
+has the same shape as the target YAML. `HelmValuesWriter` therefore uses direct
+Jackson serialization rather than manually reconstructing a second map tree.
+The production `PodinfoValuesClient` loads and validates both Model scripts and
+writes their actual `<release>.values.yaml` files. The documentary test calls
+that client; YAML emission is not test-owned plumbing.
 
 The values tests compare parsed generated YAML with checked-in semantic values
 goldens. They then run `helm template` from the vendored chart and generated
@@ -57,11 +66,11 @@ deterministic from the checked-in archive, authored inputs, and fixed flags.
 
 ## Roles and handoff
 
-- [`schema/`](schema/README.md) owns the direct `PodinfoRelease`, resource
-  defaults, Podinfo values mapping, and validation.
+- [`schema/`](schema/README.md) owns the values-shaped `PodinfoRelease`, typed
+  converter fields, `HelmValues`/`HelmValuesWriter`, defaults, and validation.
 - [`values/`](values/README.md) receives only `schema-1.0.0.jar`, owns the two
-  authoring inputs, verifies the target pin, renders offline, and checks values
-  plus manifest semantics.
+  Model scripts and tiny `PodinfoValuesClient`, verifies the target pin, renders
+  offline, and checks values plus manifest semantics.
 
 This directory is intentionally not a Gradle project. Each role leaf has its
 own settings, build, wrapper, source, tests, and README. There is no repository
@@ -77,12 +86,13 @@ handoff order from this directory:
 
 ```shell
 (cd schema && ./gradlew clean check exportCatwalkArtifact -I ../../../fixtures/showcase-artifact-handoff.init.gradle -PcatwalkArtifactDirectory=../artifacts)
-(cd values && ./gradlew clean check)
+(cd values && ./gradlew clean check generateHelmValues)
 ```
 
-Each leaf's normal command is `./gradlew clean check`; the values leaf requires
-the documented Schema JAR input. CI installs the exact Helm version, executes
-the same commands in explicit jobs, moves the Schema JAR as a workflow
+Each leaf's verification command is `./gradlew clean check`; the values leaf
+also exposes `generateHelmValues` as its production output path and requires the
+documented Schema JAR input. CI installs the exact Helm version, executes the
+same verification flow in explicit jobs, moves the Schema JAR as a workflow
 artifact, and retains generated values and rendered manifests for inspection.
 
 ## Pinned coordinates and tools
@@ -94,8 +104,8 @@ Portal. The reproducible identities are:
   [`4d85ec2ed7e0a737d71b421af2c0cf597f6830e4`](https://github.com/klum-dsl/klum-ast/commit/4d85ec2ed7e0a737d71b421af2c0cf597f6830e4).
 - Schema plugin marker
   `com.blackbuild.klum-ast-schema:com.blackbuild.klum-ast-schema.gradle.plugin:4.0.1`.
-- Groovy convention plugin marker
-  `com.blackbuild.convention.groovy:com.blackbuild.convention.groovy.gradle.plugin:4.0.1`.
+- Model plugin marker
+  `com.blackbuild.klum-ast-model:com.blackbuild.klum-ast-model.gradle.plugin:4.0.1`.
 - Values runtime `com.blackbuild.klum.ast:klum-ast-runtime:4.0.1`.
 - Groovy `org.codehaus.groovy:groovy:3.0.25` and Spock
   `org.spockframework:spock-core:2.4-groovy-3.0`.

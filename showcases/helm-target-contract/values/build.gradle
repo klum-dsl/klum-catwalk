@@ -1,13 +1,11 @@
 plugins {
-    id 'java-library'
-    id 'groovy'
-    id 'com.blackbuild.convention.groovy' version "${klumAstVersion}"
+    id 'com.blackbuild.klum-ast-model' version "${klumAstVersion}"
 }
 
 group = 'org.klum.catwalk.showcase.helm'
 version = providers.gradleProperty('journeyVersion').get()
 
-groovyDependencies {
+klumModel {
     groovyVersion = '3'
 }
 
@@ -22,15 +20,24 @@ java {
 def schemaArtifact = layout.projectDirectory.file('../artifacts/schema-1.0.0.jar')
 
 dependencies {
-    implementation files(schemaArtifact)
+    schemas files(schemaArtifact)
     implementation "com.blackbuild.klum.ast:klum-ast-runtime:${klumAstVersion}"
     implementation "org.codehaus.groovy:groovy:${groovyVersion}"
+    runtimeOnly "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonYamlVersion}"
     testImplementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonYamlVersion}"
 }
 
 tasks.withType(Test).configureEach {
     systemProperty 'helmVersion', providers.gradleProperty('helmVersion').get()
     systemProperty 'kubernetesVersion', providers.gradleProperty('kubernetesVersion').get()
+}
+
+tasks.register('generateHelmValues', JavaExec) {
+    group = 'build'
+    description = 'Loads the configured Podinfo Models and writes their values.yaml files.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'onboarding.helm.values.PodinfoValuesClient'
+    args layout.buildDirectory.dir('generated-values').get().asFile.absolutePath
 }
 
 base {

@@ -1,11 +1,19 @@
 # Podinfo target-contract Schema leaf
 
-This independent Gradle project owns the direct `PodinfoRelease` authoring
-contract for Podinfo chart `6.15.0`. It defaults the pinned Podinfo image and
-replica count, derives an in-cluster backend URL from a backend release name,
-derives an ingress host, defaults resource limits from requests, expands the
-conveniences into the chart's values keys, and validates target-specific
-constraints. Explicitly different memory limits remain a non-fatal warning.
+This independent Gradle project owns the `PodinfoRelease` contract for Podinfo
+chart `6.15.0`. Its fields follow the nested `values.yaml` output directly:
+image, UI, backend, Redis, resources, and ingress. Typed converter methods make
+those fields fluent on input (`ui 'message'`, `backend 'release'`,
+`ingress 'host'`, and `resources '50m', '64Mi'`) without introducing a separate
+translation-oriented model. `ResourceRequirements.fromValues` is the focused
+custom converter example; limits default from requests, while explicitly
+different memory limits remain a non-fatal warning.
+
+`PodinfoRelease` implements the documented `HelmValues` interface and returns
+its already values-shaped instance. The production `HelmValuesWriter` uses
+Jackson to serialize that object directly to a requested path. Public value
+types and their relevant fields carry API documentation, and bare `@Required`
+annotations use KlumAST's standard diagnostics.
 
 Run its normal command:
 

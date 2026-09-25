@@ -2,17 +2,10 @@ package onboarding.helm.values
 
 import onboarding.helm.schema.PodinfoRelease
 
-/** Public Podinfo frontend authoring input connected to the backend release. */
-class FrontendToBackendValues {
-
-    static PodinfoRelease create() {
-        PodinfoRelease.Create.With('frontend') {
-            uiMessage 'Frontend to backend'
-            backendRelease 'backend'
-            ingressEnabled true
-            resources {
-                requests { cpu '50m'; memory '64Mi' }
-            }
-        }
-    }
+// A Model is an executable configuration script, not a wrapper class.
+PodinfoRelease.Create.With('frontend') {
+    ui 'Frontend to backend'
+    backend 'backend'
+    ingress 'frontend.example.test'
+    resources '50m', '64Mi'
 }

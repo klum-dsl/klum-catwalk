@@ -7,42 +7,43 @@ import spock.lang.Specification
 
 class PodinfoReleaseSpec extends Specification {
 
-    def 'derives Podinfo image, backend, ingress, and resource defaults'() {
+    def 'converter-backed fields keep authoring compact while retaining the Helm values shape'() {
         when:
         PodinfoRelease frontend = PodinfoRelease.Create.With('frontend') {
-            backendRelease 'backend'
-            ingressEnabled true
-            resources {
-                requests { cpu '50m'; memory '64Mi' }
-            }
+            ui 'Frontend to backend'
+            backend 'backend'
+            ingress 'frontend.example.test'
+            resources '50m', '64Mi'
         }
 
         then:
-        frontend.imageRepository == 'ghcr.io/stefanprodan/podinfo'
-        frontend.imageTag == '6.15.0'
-        frontend.hostname == 'frontend.example.test'
+        frontend.image.repository == 'ghcr.io/stefanprodan/podinfo'
+        frontend.image.tag == '6.15.0'
+        frontend.ui.message == 'Frontend to backend'
+        frontend.backend.asString() == 'http://backend-podinfo:9898/echo'
+        !frontend.redis.enabled
+        frontend.resources.requests.cpu == '50m'
+        frontend.resources.requests.memory == '64Mi'
         frontend.resources.limits.cpu == '50m'
         frontend.resources.limits.memory == '64Mi'
-        frontend.toHelmValues().backend == 'http://backend-podinfo:9898/echo'
-        frontend.toHelmValues().ingress == [
-                enabled  : true,
-                className: 'nginx',
-                hosts    : [[host: 'frontend.example.test', paths: [[path: '/', pathType: 'Prefix']]]]
-        ]
+        frontend.ingress.enabled
+        frontend.ingress.className == 'nginx'
+        frontend.ingress.hosts*.host == ['frontend.example.test']
+        frontend.ingress.hosts.first().paths*.path == ['/']
+        frontend.ingress.hosts.first().paths*.pathType == ['Prefix']
+        frontend.toHelmValues().is(frontend)
     }
 
-    def 'retains explicit limits and records a non-fatal memory warning'() {
+    def 'retains explicit resource limits and records a non-fatal memory warning'() {
         when:
         PodinfoRelease backend = PodinfoRelease.Create.With('backend') {
-            redisEnabled true
-            resources {
-                requests { cpu '100m'; memory '64Mi' }
-                limits { cpu '200m'; memory '128Mi' }
-            }
+            redis true
+            resources '100m', '64Mi', '200m', '128Mi'
         }
         def issues = KlumObjectSupport.of(backend.resources).validation.result.issues
 
         then:
+        backend.redis.enabled
         backend.resources.limits.memory == '128Mi'
         issues.any { issue ->
             issue.level == Validate.Level.WARNING &&
@@ -50,21 +51,22 @@ class PodinfoReleaseSpec extends Specification {
         }
     }
 
-    def 'rejects an invalid image tag, backend release, and missing resources'() {
+    def 'rejects an invalid image tag and missing resources'() {
         when:
         PodinfoRelease.Create.With('frontend') {
-            imageTag 'latest'
-            backendRelease 'Backend Service'
+            image {
+                repository 'ghcr.io/stefanprodan/podinfo'
+                tag 'latest'
+            }
         }
 
         then:
         KlumValidationException error = thrown()
-        error.message.contains('imageTag must be a semantic version')
-        error.message.contains('backendRelease must be a DNS label')
-        error.message.contains('resources with requests and limits are required')
+        error.message.contains('image tag must be a semantic version')
+        error.message.contains('resources')
     }
 
-    def 'requires memory on each resource value'() {
+    def 'uses the default required-value diagnostic for ResourceValues'() {
         when:
         PodinfoRelease.Create.With('backend') {
             resources {
@@ -74,6 +76,6 @@ class PodinfoReleaseSpec extends Specification {
 
         then:
         KlumValidationException error = thrown()
-        error.message.contains('resource memory is required')
+        error.message.contains('memory')
     }
 }

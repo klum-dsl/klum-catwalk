@@ -1,5 +1,7 @@
 package onboarding.helm.values
 
+import com.blackbuild.klum.ast.Validate
+import com.blackbuild.klum.ast.runtime.KlumObjectSupport
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import onboarding.helm.schema.PodinfoRelease
@@ -22,6 +24,17 @@ class PodinfoHelmContractSpec extends Specification {
     private final Properties pin = loadPin()
     private final String chartVersion = pin.getProperty('chartVersion')
     private final Path chart = Path.of('src', 'test', 'resources', 'helm', 'chart', "podinfo-${chartVersion}.tgz")
+
+    def 'reads the Model scripts and validates the completed top-level releases'() {
+        when:
+        List<PodinfoRelease> releases = new PodinfoValuesClient().readModels()
+
+        then:
+        releases*.name == ['backend', 'frontend']
+        releases.every { release ->
+            !KlumObjectSupport.of(release).validation.result.has(Validate.Level.ERROR)
+        }
+    }
 
     def 'uses the pinned Podinfo chart archive and Helm renderer'() {
         expect:
@@ -50,9 +63,10 @@ class PodinfoHelmContractSpec extends Specification {
         Files.createDirectories(renderedDirectory)
 
         when:
-        String generatedValues = yaml.writeValueAsString(release.toHelmValues())
-        Path generatedValuesFile = generatedDirectory.resolve("${release.name}.values.yaml")
-        Files.writeString(generatedValuesFile, generatedValues)
+        Path generatedValuesFile = new PodinfoValuesClient()
+                .writeValues(generatedDirectory)
+                .find { it.fileName.toString() == "${release.name}.values.yaml" }
+        String generatedValues = Files.readString(generatedValuesFile)
         Map expectedValues = yaml.readValue(resourceText("helm/golden-values/${release.name}.values.yaml"), Map)
 
         String rendered = command(
@@ -71,7 +85,7 @@ class PodinfoHelmContractSpec extends Specification {
         actualSummary == expectedSummary
 
         where:
-        release << [BackendWithRedisValues.create(), FrontendToBackendValues.create()]
+        release << new PodinfoValuesClient().readModels()
     }
 
     private List<Map<String, Object>> readDocuments(String rendered) {
