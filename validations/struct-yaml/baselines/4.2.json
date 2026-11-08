@@ -1,0 +1,23 @@
+{
+  "releaseLine": "4.2",
+  "publicCoordinate": "4.2.0-rc.1",
+  "status": "pending-publication",
+  "qualified": false,
+  "fixture": "validations/struct-yaml",
+  "scope": [
+    "caller-owned ordered YAML parsing",
+    "duplicate-key rejection before Struct conversion",
+    "keyed nested Create.FromStruct",
+    "completed Model assertions",
+    "generated JSON Schema and explicit consumer validation"
+  ],
+  "formalQualification": {
+    "requires": [
+      "public plugin marker",
+      "public BOM, AST, and runtime coordinates",
+      "fresh dependency home",
+      "no Maven Local, composite, source, or local artifact substitution"
+    ],
+    "notBefore": "public 4.2.0-rc.1 publication"
+  }
+}
