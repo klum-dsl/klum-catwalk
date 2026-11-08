@@ -19,22 +19,20 @@ does not replace Struct conversion or full Model lifecycle validation.
 
 ## Status and normal command
 
-The source fixture is ready for review, but no 4.2 public candidate is
-available yet. `gradle.properties` therefore contains the deliberately
-unresolvable placeholder `4.2.0-rc.1-PENDING-PUBLICATION`. Do not run Gradle
-against it and do not substitute a local or guessed version.
-
-After KlumAST Hive announces the exact public `4.2.0-rc.1` coordinate, replace
-that placeholder only through the approved baseline update and run from this
-directory with a fresh Gradle user home:
+The retained candidate is public KlumAST `4.2.0-rc.1`. Run the passing public
+coordinate check from this directory with a fresh Gradle user home:
 
 ```shell
 GRADLE_USER_HOME="$(mktemp -d)" ./gradlew verifyStructYamlPublicBaseline
 ```
 
-The retained task will run source-mirror generation, JSON Schema generation,
+The retained task runs source-mirror generation, JSON Schema generation,
 Javadoc, tests, normal checks, and public-coordinate evidence recording. It
-will reject any version other than the formal retained baseline.
+rejects any version other than the formal retained baseline.
+
+## Evidence
+
+- [`2026-11-08 public 4.2.0-rc.1`](evidence/2026-11-08-public-4.2.0-rc.1.md)
 
 ## Boundaries
 

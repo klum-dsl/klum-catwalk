@@ -10,9 +10,8 @@ Gradle build and intentionally has no root build files or Gradle wrapper.
   direct published-consumer proof.
 - [`validations/layer3-contracts`](validations/layer3-contracts/README.md) — the
   independent SC-3 Layer 3 API + Schema contract validation.
-- [`validations/struct-yaml`](validations/struct-yaml/README.md) — the pending
-  4.2 Struct/YAML public-consumer baseline; it becomes runnable only after the
-  exact public RC coordinate is available.
+- [`validations/struct-yaml`](validations/struct-yaml/README.md) — the retained
+  4.2 Struct/YAML public-consumer baseline.
 - [`showcases/domain-first-smart-home`](showcases/domain-first-smart-home/README.md)
   — the four-leaf smart-home Layer 3 onboarding journey with explicit binary
   artifact handoffs.

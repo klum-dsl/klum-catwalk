@@ -1,8 +1,12 @@
 {
   "releaseLine": "4.2",
   "publicCoordinate": "4.2.0-rc.1",
-  "status": "pending-publication",
-  "qualified": false,
+  "status": "public-rc-qualified",
+  "qualified": true,
+  "releaseSource": {
+    "tag": "v4.2.0-rc.1",
+    "commit": "5b7418377464f484ac935003d3d6e3e536e07524"
+  },
   "fixture": "validations/struct-yaml",
   "scope": [
     "caller-owned ordered YAML parsing",
@@ -18,6 +22,6 @@
       "fresh dependency home",
       "no Maven Local, composite, source, or local artifact substitution"
     ],
-    "notBefore": "public 4.2.0-rc.1 publication"
+    "record": "evidence/2026-11-08-public-4.2.0-rc.1.md"
   }
 }
