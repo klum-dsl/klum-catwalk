@@ -7,7 +7,7 @@ import com.blackbuild.klum.ast.Required
 
 /**
  * One caller-supplied release description. Its key is part of the input
- * document, while the keys of {@link #services} are supplied by their outer
+ * document, while the keys of {@code services} are supplied by their outer
  * YAML map entries rather than repeated inside each service body.
  */
 @DSL

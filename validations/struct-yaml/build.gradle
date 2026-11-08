@@ -31,8 +31,8 @@ configurations {
 }
 
 dependencies {
-    def expectedMarker = "${pluginId}:${pluginId}.gradle.plugin:${retainedBaselineVersion}"
-    def expectedBom = "com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}"
+    def expectedMarker = "${pluginId}:${pluginId}.gradle.plugin:${retainedBaselineVersion}".toString()
+    def expectedBom = "com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}".toString()
 
     releasedKlumAstProduct platform(expectedBom)
     releasedKlumAstProduct expectedBom
@@ -66,7 +66,7 @@ tasks.register('verifyStructYamlPublicBaseline') {
 
     doLast {
         def mirror = layout.buildDirectory.dir('generated/sources/klum-dsl-ide/main').get().asFile
-        def sourceSets = extensions.getByType(org.gradle.api.plugins.JavaPluginExtension).sourceSets
+        def sourceSets = project.extensions.getByType(org.gradle.api.plugins.JavaPluginExtension).sourceSets
         def main = sourceSets.main
         def compileGroovy = tasks.named('compileGroovy').get()
         def jar = tasks.named('jar').get()
@@ -92,9 +92,9 @@ tasks.register('verifyStructYamlPublicBaseline') {
                         : component.id.displayName
             }.findAll { it.startsWith('com.blackbuild.') }.toSet().sort()
         }
-        def expectedMarker = "${pluginId}:${pluginId}.gradle.plugin:${retainedBaselineVersion}"
-        def expectedImplementation = "com.blackbuild.klum.ast:klum-ast-gradle-plugin:${retainedBaselineVersion}"
-        def expectedBom = "com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}"
+        def expectedMarker = "${pluginId}:${pluginId}.gradle.plugin:${retainedBaselineVersion}".toString()
+        def expectedImplementation = "com.blackbuild.klum.ast:klum-ast-gradle-plugin:${retainedBaselineVersion}".toString()
+        def expectedBom = "com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}".toString()
         def marker = coordinates(configurations.schemaPluginMarker)
         def product = coordinates(configurations.releasedKlumAstProduct)
         def schema = main.compileClasspath.incoming.resolutionResult.allComponents.collect { component ->
@@ -110,7 +110,7 @@ tasks.register('verifyStructYamlPublicBaseline') {
             throw new GradleException("KlumAST BOM did not resolve normally: ${expectedBom}")
         }
         ['klum-ast', 'klum-ast-runtime'].each { module ->
-            def expected = "com.blackbuild.klum.ast:${module}:${retainedBaselineVersion}"
+            def expected = "com.blackbuild.klum.ast:${module}:${retainedBaselineVersion}".toString()
             if (!product.contains(expected) || !schema.contains(expected)) {
                 throw new GradleException("Missing expected KlumAST consumer coordinate: ${expected}")
             }
