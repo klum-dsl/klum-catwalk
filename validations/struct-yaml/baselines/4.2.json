@@ -1,11 +1,11 @@
 {
   "releaseLine": "4.2",
-  "publicCoordinate": "4.2.0-rc.1",
+  "publicCoordinate": "4.2.0-rc.4",
   "status": "public-rc-qualified",
   "qualified": true,
   "releaseSource": {
-    "tag": "v4.2.0-rc.1",
-    "commit": "5b7418377464f484ac935003d3d6e3e536e07524"
+    "tag": "v4.2.0-rc.4",
+    "commit": "963b1d23f4e574592b20fb610ea5f2a9bfb15296"
   },
   "fixture": "validations/struct-yaml",
   "scope": [
@@ -13,7 +13,7 @@
     "duplicate-key rejection before Struct conversion",
     "keyed nested Create.FromStruct",
     "completed Model assertions",
-    "generated JSON Schema and explicit consumer validation"
+    "formatted Draft 2020-12 JSON Schema and explicit positive and negative consumer validation"
   ],
   "formalQualification": {
     "requires": [
@@ -22,6 +22,6 @@
       "fresh dependency home",
       "no Maven Local, composite, source, or local artifact substitution"
     ],
-    "record": "evidence/2026-11-08-public-4.2.0-rc.1.md"
+    "record": "evidence/2026-11-10-public-4.2.0-rc.4.md"
   }
 }

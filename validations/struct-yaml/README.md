@@ -12,14 +12,15 @@ keyed root takes `release` from its own input member, while keyed service
 children take their identities from the outer `services` map keys. Service
 bodies deliberately do not repeat those keys.
 
-The Schema plugin also generates a JSON Schema for `ReleaseManifest`. The test
-loads that artifact and validates the same caller-owned parsed document through
-a normal JSON Schema validator. Schema validation is explicit consumer work: it
-does not replace Struct conversion or full Model lifecycle validation.
+The Schema plugin generates a formatted Draft 2020-12 JSON Schema for
+`ReleaseManifest`. The test reads the generated file and uses a JSON Schema
+validator to accept the caller-owned document and reject a string in a nested
+integer port list. Schema validation and completed Model validation are
+separate steps.
 
 ## Status and normal command
 
-The retained candidate is public KlumAST `4.2.0-rc.1`. Run the passing public
+The retained candidate is public KlumAST `4.2.0-rc.4`. Run the public
 coordinate check from this directory with a fresh Gradle user home:
 
 ```shell
@@ -27,12 +28,15 @@ GRADLE_USER_HOME="$(mktemp -d)" ./gradlew verifyStructYamlPublicBaseline
 ```
 
 The retained task runs source-mirror generation, JSON Schema generation,
-Javadoc, tests, normal checks, and public-coordinate evidence recording. It
-rejects any version other than the formal retained baseline.
+Javadoc, and tests. It records the wrapper task invocation, test counts,
+resolved compile and runtime coordinates, and mirror checks in
+`build/verification/struct-yaml-public-evidence.json`. It rejects other
+KlumAST versions and requires a passing test report.
 
 ## Evidence
 
-- [`2026-11-08 public 4.2.0-rc.1`](evidence/2026-11-08-public-4.2.0-rc.1.md)
+- [`2026-11-10 public 4.2.0-rc.4`](evidence/2026-11-10-public-4.2.0-rc.4.md)
+- [`2026-11-08 public 4.2.0-rc.1`](evidence/2026-11-08-public-4.2.0-rc.1.md) (historical)
 
 ## Boundaries
 
