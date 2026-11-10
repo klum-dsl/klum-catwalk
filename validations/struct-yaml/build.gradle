@@ -1,11 +1,13 @@
 import groovy.json.JsonOutput
+import groovy.xml.XmlSlurper
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 
 plugins {
     id 'com.blackbuild.klum-ast-schema' version "${klumAstVersion}"
 }
 
 def selectedKlumAstVersion = providers.gradleProperty('klumAstVersion').get()
-def retainedBaselineVersion = '4.2.0-rc.1'
+def retainedBaselineVersion = '4.2.0-rc.4'
 def pluginId = 'com.blackbuild.klum-ast-schema'
 def rootType = 'org.klum.catwalk.structyaml.ReleaseManifest'
 def generatedSchema = layout.buildDirectory.file(
@@ -45,9 +47,11 @@ dependencies {
     testImplementation "com.fasterxml.jackson.core:jackson-databind:${providers.gradleProperty('jacksonVersion').get()}"
 }
 
-tasks.named('test') {
+def consumerTest = tasks.named('test') {
     useJUnitPlatform()
     dependsOn 'generateKlumJsonSchema'
+    inputs.file(generatedSchema)
+    systemProperty 'catwalk.generatedSchema', generatedSchema.get().asFile.absolutePath
 }
 
 def containsPath = { files, File directory ->
@@ -86,22 +90,23 @@ tasks.register('verifyStructYamlPublicBaseline') {
         }
 
         def coordinates = { configuration ->
-            configuration.incoming.resolutionResult.allComponents.collect { component ->
-                component.moduleVersion
-                        ? "${component.moduleVersion.group}:${component.moduleVersion.name}:${component.moduleVersion.version}".toString()
-                        : component.id.displayName
-            }.findAll { it.startsWith('com.blackbuild.') }.toSet().sort()
+            configuration.incoming.resolutionResult.allComponents.findAll { component ->
+                component.moduleVersion?.group?.startsWith('com.blackbuild.')
+            }.collect { component ->
+                if (!(component.id instanceof ModuleComponentIdentifier)) {
+                    throw new GradleException("${configuration.name} substituted a published module with ${component.id.displayName}")
+                }
+                component.moduleVersion.toString()
+            }.toSet().sort()
         }
         def expectedMarker = "${pluginId}:${pluginId}.gradle.plugin:${retainedBaselineVersion}".toString()
         def expectedImplementation = "com.blackbuild.klum.ast:klum-ast-gradle-plugin:${retainedBaselineVersion}".toString()
         def expectedBom = "com.blackbuild.klum.ast:klum-ast-bom:${retainedBaselineVersion}".toString()
         def marker = coordinates(configurations.schemaPluginMarker)
         def product = coordinates(configurations.releasedKlumAstProduct)
-        def schema = main.compileClasspath.incoming.resolutionResult.allComponents.collect { component ->
-            component.moduleVersion
-                    ? "${component.moduleVersion.group}:${component.moduleVersion.name}:${component.moduleVersion.version}".toString()
-                    : component.id.displayName
-        }.findAll { it.startsWith('com.blackbuild.') }.toSet().sort()
+        def schema = coordinates(configurations.getByName(main.compileClasspathConfigurationName))
+        def runtime = coordinates(configurations.getByName(main.runtimeClasspathConfigurationName))
+        def testRuntime = coordinates(configurations.getByName(sourceSets.test.runtimeClasspathConfigurationName))
 
         if (!marker.contains(expectedMarker) || !marker.contains(expectedImplementation)) {
             throw new GradleException("Schema plugin did not resolve through the public 4.2 marker: ${marker}")
@@ -109,11 +114,32 @@ tasks.register('verifyStructYamlPublicBaseline') {
         if (!product.contains(expectedBom)) {
             throw new GradleException("KlumAST BOM did not resolve normally: ${expectedBom}")
         }
-        ['klum-ast', 'klum-ast-runtime'].each { module ->
-            def expected = "com.blackbuild.klum.ast:${module}:${retainedBaselineVersion}".toString()
-            if (!product.contains(expected) || !schema.contains(expected)) {
-                throw new GradleException("Missing expected KlumAST consumer coordinate: ${expected}")
+        def expectedAst = "com.blackbuild.klum.ast:klum-ast:${retainedBaselineVersion}".toString()
+        def expectedRuntime = "com.blackbuild.klum.ast:klum-ast-runtime:${retainedBaselineVersion}".toString()
+        def expectedTestSupport = "com.blackbuild.klum.ast:klum-ast-test-support:${retainedBaselineVersion}".toString()
+        [releasedProduct: product, schemaCompile: schema, mainRuntime: runtime, testRuntime: testRuntime].each { graph, resolved ->
+            def drift = resolved.findAll {
+                it.startsWith('com.blackbuild.klum.ast:') && !it.endsWith(":${retainedBaselineVersion}")
             }
+            if (!drift.empty || !resolved.contains(expectedRuntime)) {
+                throw new GradleException("${graph} must resolve KlumAST ${retainedBaselineVersion}: ${resolved}")
+            }
+        }
+        if (!product.contains(expectedAst) || !schema.contains(expectedAst) || !testRuntime.contains(expectedTestSupport)) {
+            throw new GradleException('Missing the published KlumAST AST or test support on its consumer graph')
+        }
+
+        def testTask = consumerTest.get()
+        def testReports = fileTree(testTask.reports.junitXml.outputLocation.get().asFile) {
+            include 'TEST-*.xml'
+        }.files
+        def testResult = [tests: 0, skipped: 0, failures: 0, errors: 0]
+        testReports.each { report ->
+            def suite = new XmlSlurper().parse(report)
+            testResult.each { name, count -> testResult[name] = count + suite.attributes()[name].toInteger() }
+        }
+        if (testResult.tests == 0 || testResult.skipped || testResult.failures || testResult.errors) {
+            throw new GradleException("The consumer tests must all pass: ${testResult}")
         }
 
         def output = layout.buildDirectory.file('verification/struct-yaml-public-evidence.json').get().asFile
@@ -122,6 +148,8 @@ tasks.register('verifyStructYamlPublicBaseline') {
                 mode                 : 'public-release-candidate',
                 fixture              : rootProject.name,
                 klumAstVersion       : retainedBaselineVersion,
+                command              : ['./gradlew'] + gradle.startParameter.taskNames,
+                testResult           : testResult,
                 gradle               : gradle.gradleVersion,
                 java                 : System.getProperty('java.version'),
                 pluginMarker         : marker.findAll { it.startsWith("${pluginId}:") },
@@ -129,6 +157,8 @@ tasks.register('verifyStructYamlPublicBaseline') {
                 bom                  : product.findAll { it == expectedBom },
                 releasedProduct      : product,
                 schemaResolved       : schema,
+                mainRuntimeResolved  : runtime,
+                testRuntimeResolved  : testRuntime,
                 generatedJsonSchema  : generatedSchema.get().asFile.toString(),
                 mirrorInputLeaks     : mirrorChecks,
                 repositories         : [dependencies: ['mavenCentral'], plugins: ['gradlePluginPortal', 'mavenCentral']],

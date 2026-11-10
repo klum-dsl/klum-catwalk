@@ -56,18 +56,20 @@ services:
         thrown(DuplicateKeyException)
     }
 
-    def 'the generated JSON Schema validates the same caller-owned document'() {
+    def 'the generated Draft 2020-12 schema validates the caller-owned document shape'() {
         given:
         Map<String, Object> document = CallerYaml.parse(DOCUMENT)
         ObjectMapper mapper = new ObjectMapper()
-        File schemaFile = new File(
-                System.getProperty('catwalk.generatedSchema',
-                        'build/generated/klum-json-schema/org.klum.catwalk.structyaml.ReleaseManifest.schema.json')
-        )
-        JsonNode schemaDocument = mapper.readTree(schemaFile)
+        File schemaFile = new File(System.getProperty('catwalk.generatedSchema'))
+        String schemaText = schemaFile.getText('UTF-8')
+        JsonNode schemaDocument = mapper.readTree(schemaText)
         def schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(schemaDocument)
+        Map<String, Object> invalidDocument = CallerYaml.parse(DOCUMENT.replace('[8080, 8443]', '[invalid, 8443]'))
 
         expect:
+        schemaDocument.path('$schema').asText() == 'https://json-schema.org/draft/2020-12/schema'
+        schemaText.readLines().contains('    "$defs": {')
         schema.validate(mapper.valueToTree(document)).empty
+        !schema.validate(mapper.valueToTree(invalidDocument)).empty
     }
 }
