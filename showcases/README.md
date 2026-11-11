@@ -15,6 +15,8 @@ needs them. Each leaf owns its settings, build, wrapper, sources, and README.
 - [`helm-target-contract`](helm-target-contract/README.md) — a direct-Schema
   Podinfo backend/Redis and frontend/ingress journey with a binary Schema
   handoff plus offline semantic values and rendered-manifest checks.
+- [`filesystem-keyed-struct`](filesystem-keyed-struct/README.md) — a
+  documentation redirect catalog with standalone and directory-keyed YAML.
 
 ## Boundaries
 
