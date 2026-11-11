@@ -7,7 +7,7 @@ plugins {
 }
 
 def selectedKlumAstVersion = providers.gradleProperty('klumAstVersion').get()
-def retainedBaselineVersion = '4.2.0-rc.4'
+def retainedBaselineVersion = '4.2.0-rc.5'
 def pluginId = 'com.blackbuild.klum-ast-schema'
 def rootType = 'org.klum.catwalk.structyaml.ReleaseManifest'
 def generatedSchema = layout.buildDirectory.file(

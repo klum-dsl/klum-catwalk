@@ -1,11 +1,11 @@
 {
   "releaseLine": "4.2",
-  "publicCoordinate": "4.2.0-rc.4",
+  "publicCoordinate": "4.2.0-rc.5",
   "status": "public-rc-qualified",
   "qualified": true,
   "releaseSource": {
-    "tag": "v4.2.0-rc.4",
-    "commit": "963b1d23f4e574592b20fb610ea5f2a9bfb15296"
+    "tag": "v4.2.0-rc.5",
+    "commit": "07cd974558d009463db4ef62539634d22e4b4dc2"
   },
   "fixture": "validations/struct-yaml",
   "scope": [
@@ -22,6 +22,6 @@
       "fresh dependency home",
       "no Maven Local, composite, source, or local artifact substitution"
     ],
-    "record": "evidence/2026-11-10-public-4.2.0-rc.4.md"
+    "record": "evidence/2026-11-11-public-4.2.0-rc.5.md"
   }
 }

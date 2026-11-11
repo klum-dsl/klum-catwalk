@@ -20,7 +20,7 @@ separate steps.
 
 ## Status and normal command
 
-The retained candidate is public KlumAST `4.2.0-rc.4`. Run the public
+The retained candidate is public KlumAST `4.2.0-rc.5`. Run the public
 coordinate check from this directory with a fresh Gradle user home:
 
 ```shell
@@ -35,7 +35,8 @@ KlumAST versions and requires a passing test report.
 
 ## Evidence
 
-- [`2026-11-10 public 4.2.0-rc.4`](evidence/2026-11-10-public-4.2.0-rc.4.md)
+- [`2026-11-11 public 4.2.0-rc.5`](evidence/2026-11-11-public-4.2.0-rc.5.md)
+- [`2026-11-10 public 4.2.0-rc.4`](evidence/2026-11-10-public-4.2.0-rc.4.md) (historical)
 - [`2026-11-08 public 4.2.0-rc.1`](evidence/2026-11-08-public-4.2.0-rc.1.md) (historical)
 
 ## Boundaries
