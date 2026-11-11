@@ -18,6 +18,9 @@ Gradle build and intentionally has no root build files or Gradle wrapper.
 - [`showcases/helm-target-contract`](showcases/helm-target-contract/README.md)
   — the two-leaf direct-Schema Podinfo Helm journey with offline semantic
   values and rendered-manifest contract checks.
+- [`showcases/filesystem-keyed-struct`](showcases/filesystem-keyed-struct/README.md)
+  — a documentation redirect catalog built from standalone and directory-keyed
+  YAML.
 
 Each Gradle project is invoked through its own wrapper. Projects do not include,
 compose, or build one another, and there is no root aggregate build.

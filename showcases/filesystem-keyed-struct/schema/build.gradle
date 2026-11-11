@@ -1,0 +1,41 @@
+plugins {
+    id 'application'
+    id 'com.blackbuild.klum-ast-schema' version '4.2.0-rc.5'
+}
+
+def redirectRule = 'org.klum.catwalk.redirects.RedirectRule'
+def schemaDirectory = layout.buildDirectory.dir('generated/klum-json-schema')
+
+klumSchema {
+    groovyVersion = '3'
+    jsonSchema {
+        rootTypes.add(redirectRule)
+        bodyRootTypes.add(redirectRule)
+    }
+}
+
+dependencies {
+    implementation 'org.yaml:snakeyaml:2.6'
+    runtimeOnly 'org.codehaus.groovy:groovy'
+    testImplementation 'com.networknt:json-schema-validator:1.5.6'
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+}
+
+application {
+    mainClass = 'org.klum.catwalk.redirects.RedirectShowcase'
+}
+
+tasks.named('run', JavaExec) {
+    args 'examples'
+}
+
+tasks.named('test', Test) {
+    useJUnitPlatform()
+    dependsOn tasks.named('generateKlumJsonSchema')
+    inputs.dir('examples')
+    inputs.files(
+            schemaDirectory.map { it.file("${redirectRule}.schema.json") },
+            schemaDirectory.map { it.file("${redirectRule}.builder-body.schema.json") }
+    )
+    systemProperty 'catwalk.redirectSchemaDirectory', schemaDirectory.get().asFile.absolutePath
+}
