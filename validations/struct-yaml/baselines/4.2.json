@@ -1,0 +1,27 @@
+{
+  "releaseLine": "4.2",
+  "publicCoordinate": "4.2.0-rc.5",
+  "status": "public-rc-qualified",
+  "qualified": true,
+  "releaseSource": {
+    "tag": "v4.2.0-rc.5",
+    "commit": "07cd974558d009463db4ef62539634d22e4b4dc2"
+  },
+  "fixture": "validations/struct-yaml",
+  "scope": [
+    "caller-owned ordered YAML parsing",
+    "duplicate-key rejection before Struct conversion",
+    "keyed nested Create.FromStruct",
+    "completed Model assertions",
+    "formatted Draft 2020-12 JSON Schema and explicit positive and negative consumer validation"
+  ],
+  "formalQualification": {
+    "requires": [
+      "public plugin marker",
+      "public BOM, AST, and runtime coordinates",
+      "fresh dependency home",
+      "no Maven Local, composite, source, or local artifact substitution"
+    ],
+    "record": "evidence/2026-11-11-public-4.2.0-rc.5.md"
+  }
+}
