@@ -7,7 +7,7 @@ plugins {
 }
 
 def selectedKlumAstVersion = providers.gradleProperty('klumAstVersion').get()
-def retainedBaselineVersion = '4.2.0-rc.5'
+def retainedBaselineVersion = '4.2.0'
 def pluginId = 'com.blackbuild.klum-ast-schema'
 def rootType = 'org.klum.catwalk.structyaml.ReleaseManifest'
 def generatedSchema = layout.buildDirectory.file(
@@ -145,7 +145,7 @@ tasks.register('verifyStructYamlPublicBaseline') {
         def output = layout.buildDirectory.file('verification/struct-yaml-public-evidence.json').get().asFile
         output.parentFile.mkdirs()
         output.text = JsonOutput.prettyPrint(JsonOutput.toJson([
-                mode                 : 'public-release-candidate',
+                mode                 : 'public-release',
                 fixture              : rootProject.name,
                 klumAstVersion       : retainedBaselineVersion,
                 command              : ['./gradlew'] + gradle.startParameter.taskNames,
