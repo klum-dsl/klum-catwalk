@@ -20,7 +20,7 @@ separate steps.
 
 ## Status and normal command
 
-The retained release is public KlumAST `4.2.0`. Run the public
+The retained release is public KlumAST `4.2.1`. Run the public
 coordinate check from this directory with a fresh Gradle user home:
 
 ```shell
@@ -35,7 +35,8 @@ KlumAST versions and requires a passing test report.
 
 ## Evidence
 
-- [`2026-11-17 public 4.2.0`](evidence/2026-11-17-public-4.2.0.md)
+- [`2026-11-20 public 4.2.1`](evidence/2026-11-20-public-4.2.1.md)
+- [`2026-11-17 public 4.2.0`](evidence/2026-11-17-public-4.2.0.md) (historical)
 - [`2026-11-11 public 4.2.0-rc.5`](evidence/2026-11-11-public-4.2.0-rc.5.md) (historical)
 - [`2026-11-10 public 4.2.0-rc.4`](evidence/2026-11-10-public-4.2.0-rc.4.md) (historical)
 - [`2026-11-08 public 4.2.0-rc.1`](evidence/2026-11-08-public-4.2.0-rc.1.md) (historical)
