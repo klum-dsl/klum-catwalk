@@ -1,10 +1,10 @@
 {
   "releaseLine": "4.2",
-  "publicCoordinate": "4.2.0",
+  "publicCoordinate": "4.2.1",
   "status": "public-final-qualified",
   "qualified": true,
   "releaseSource": {
-    "tag": "v4.2.0",
+    "tag": "v4.2.1",
     "commit": "26bfd628fd071a79f0dd11a0004103520df26033"
   },
   "fixture": "validations/struct-yaml",
@@ -22,6 +22,6 @@
       "fresh dependency home",
       "no Maven Local, composite, source, or local artifact substitution"
     ],
-    "record": "evidence/2026-11-17-public-4.2.0.md"
+    "record": "evidence/2026-11-20-public-4.2.1.md"
   }
 }
